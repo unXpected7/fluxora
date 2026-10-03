@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   verify-frontend:
-    runs-on: [self-hosted, linux, x64, nilam]
+    runs-on: self-hosted
     defaults:
       run:
         working-directory: frontend
@@ -29,7 +29,7 @@ jobs:
   deploy-development:
     if: github.event_name == 'push'
     needs: [verify-frontend]
-    runs-on: [self-hosted, linux, x64, nilam]
+    runs-on: self-hosted
     environment: development
     steps:
       - uses: actions/checkout@v4

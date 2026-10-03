@@ -9,7 +9,7 @@ Fluxora is a static React/Vite site served by Nginx. It uses no database or back
 
 ## vm01 setup
 
-Place this checkout under `~/fluxora` on vm01. The Actions runner must be able to run Docker Compose and use the existing `nilam` self-hosted runner label. The application compose file does not join Nilam's database network and does not expose a public interface.
+Place this checkout under `~/fluxora` on vm01. Configure the repository's self-hosted GitHub Actions runner on vm01 with Docker Compose access. The workflows target `self-hosted`. The application compose file does not join Nilam's database network and does not expose a public interface.
 
 ```sh
 cd ~/fluxora
