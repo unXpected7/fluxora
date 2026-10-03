@@ -20,14 +20,16 @@ The GitHub Actions workflows deploy on pushes after frontend verification. Pull 
 
 ## Public gateway setup
 
-Create the Cloudflare DNS records for `dev`, apex, and `www` pointing to the public gateway. Provision the certificates on the gateway before installing these TLS vhosts, for example with Certbot standalone while ports 80/443 are available:
+Create the Cloudflare DNS records for `dev`, apex, and `www` pointing to the public gateway. The current hostname requests are reaching the gateway's default PMeme Handal API vhost, so the Fluxora vhosts below must be enabled before the domains will serve this frontend.
+
+For the first certificate issuance, install a temporary HTTP-only vhost for all three hostnames that serves `/.well-known/acme-challenge/` from `/var/www/certbot` (create that directory first). Keep Cloudflare proxying enabled only if HTTP challenge traffic is allowed through; otherwise temporarily set the records to DNS-only while issuing. Then run:
 
 ```sh
-sudo certbot certonly --standalone -d dev.fluxorastudio.id
-sudo certbot certonly --standalone -d fluxorastudio.id -d www.fluxorastudio.id
+sudo certbot certonly --webroot -w /var/www/certbot -d dev.fluxorastudio.id
+sudo certbot certonly --webroot -w /var/www/certbot -d fluxorastudio.id -d www.fluxorastudio.id
 ```
 
-Then copy the matching file from `deploy/nginx-public/` to the gateway's `/etc/nginx/sites-available/`, enable it under `sites-enabled`, run `nginx -t`, and reload Nginx. Use the certificate's actual directory name in the vhost if it differs from the host shown there.
+Replace the temporary vhost with the matching file from `deploy/nginx-public/` in `/etc/nginx/sites-available/`, enable it under `sites-enabled`, run `nginx -t`, and reload Nginx. The HTTP vhost preserves the ACME challenge path so certificate renewal continues to work.
 
 The production certificate shown in the vhost must cover both `fluxorastudio.id` and `www.fluxorastudio.id`. The certificate paths assume Certbot's standard `live/<certificate-name>` layout; update the paths if the certificate has a different name.
 
@@ -36,4 +38,4 @@ Public routing source files:
 - `deploy/nginx-public/dev.fluxorastudio.id` → `10.10.0.2:8093`
 - `deploy/nginx-public/fluxorastudio.id` → `10.10.0.2:8094`
 
-Neither installing gateway configuration, issuing TLS certificates, setting up DNS, nor deploying remotely is performed by this repository workflow.
+The GitHub Actions workflows deploy only to vm01; they do not install gateway configuration or issue certificates. Those steps require root access to the public gateway.
