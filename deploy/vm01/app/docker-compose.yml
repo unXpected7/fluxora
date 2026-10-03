@@ -1,0 +1,16 @@
+services:
+  dev-frontend:
+    build:
+      context: ../../../frontend
+    container_name: fluxora-dev-frontend
+    restart: unless-stopped
+    ports:
+      - "10.10.0.2:8093:80"
+
+  prod-frontend:
+    build:
+      context: ../../../frontend
+    container_name: fluxora-prod-frontend
+    restart: unless-stopped
+    ports:
+      - "10.10.0.2:8094:80"

@@ -1,0 +1,39 @@
+name: Fluxora Development
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-frontend:
+    runs-on: [self-hosted, linux, x64, nilam]
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build
+
+  deploy-development:
+    if: github.event_name == 'push'
+    needs: [verify-frontend]
+    runs-on: [self-hosted, linux, x64, nilam]
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and deploy development site
+        run: |
+          docker compose -f deploy/vm01/app/docker-compose.yml up --build -d dev-frontend
+          docker compose -f deploy/vm01/app/docker-compose.yml ps dev-frontend
