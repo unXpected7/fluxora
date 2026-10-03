@@ -15,6 +15,7 @@ server {
     server_name dev.fluxorastudio.id;
     ssl_certificate /etc/letsencrypt/live/dev.fluxorastudio.id/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/dev.fluxorastudio.id/privkey.pem;
+    add_header X-Robots-Tag "noindex, nofollow" always;
     location / {
         proxy_pass http://10.10.0.2:8093;
         proxy_set_header Host $host;

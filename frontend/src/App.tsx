@@ -133,7 +133,7 @@ function App() {
 
       <section className="hero page-shell" aria-labelledby="hero-title">
         <div className="hero-copy">
-          <p className="eyebrow"><span /> DIGITAL PRODUCT STUDIO <b>·</b> FLUXORA</p>
+          <p className="eyebrow"><span /> PENGEMBANGAN SOFTWARE BISNIS <b>·</b> FLUXORA</p>
           <h1 id="hero-title">Sistem digital yang bergerak <em>seirama</em> dengan bisnis Anda.</h1>
           <p className="hero-description">
             Kami merancang dan membangun e-commerce, asisten AI, ERP & logistik, serta e-ticketing sesuai kebutuhan nyata bisnis.
