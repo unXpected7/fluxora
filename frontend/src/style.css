@@ -38,6 +38,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .brand-name { font: 600 20px var(--serif); letter-spacing: -.8px; color: var(--ink); }.brand-name > span { color: var(--blue); font-style: italic; font-weight: 500; }
 .primary-nav { display: flex; align-items: center; gap: clamp(20px, 3vw, 38px); font-size: 14px; color: #465264; }
 .primary-nav > a:not(.nav-contact):hover, .text-link:hover, .back-to-top:hover { color: var(--blue-dark); }
+.language-toggle { min-width: 38px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #aab4c1; color: var(--ink); font: 500 11px var(--mono); letter-spacing: .04em; transition: color .2s, border-color .2s, background .2s; }
+.language-toggle:hover { color: white !important; border-color: var(--ink); background: var(--ink); }
 .nav-contact { padding: 12px 16px; border: 1px solid #9ea9ba; color: var(--ink); transition: background .2s, color .2s, border-color .2s; }
 .nav-contact:hover { color: white; border-color: var(--ink); background: var(--ink); }
 .menu-toggle { display: none; padding: 8px; color: var(--ink); border: 0; background: transparent; }
