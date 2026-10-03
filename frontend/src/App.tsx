@@ -1,41 +1,102 @@
-import { ArrowDown, ArrowUpRight, ArrowRight, Box, BrainCircuit, Menu, Ticket, X, Route } from 'lucide-react';
+import {
+  Boxes,
+  BrainCircuit,
+  Check,
+  Menu,
+  ShoppingBag,
+  Ticket,
+  X,
+} from 'lucide-react';
 import { useState } from 'react';
 
-const offerings = [
+const services = [
   {
     number: '01',
-    icon: Box,
+    icon: ShoppingBag,
     title: 'E-commerce',
-    description: 'A storefront that does more than look good. We build the commerce engine behind a smoother path from discovery to delivery.',
-    tags: ['Storefronts', 'Payments', 'Operations'],
+    description:
+      'Pengalaman belanja yang rapi bagi pelanggan, dengan alur pesanan yang jelas bagi tim di belakangnya.',
+    capabilities: ['Toko online', 'Katalog & pesanan', 'Integrasi pembayaran'],
   },
   {
     number: '02',
     icon: BrainCircuit,
-    title: 'AI assistants',
-    description: 'Give customers and teams a faster way to get things done with AI assistants grounded in your real workflows and knowledge.',
-    tags: ['Conversational AI', 'Knowledge systems', 'Automation'],
+    title: 'Asisten AI',
+    description:
+      'Bantuan yang memahami konteks bisnis dan membantu pelanggan atau tim menyelesaikan pekerjaan lebih cepat.',
+    capabilities: ['Asisten pelanggan', 'Basis pengetahuan', 'Otomasi alur kerja'],
   },
   {
     number: '03',
-    icon: Route,
-    title: 'ERP & logistics',
-    description: 'Connect inventory, fulfilment, and the people doing the work in one dependable operational system.',
-    tags: ['ERP', 'Inventory', 'Logistics'],
+    icon: Boxes,
+    title: 'ERP & logistik',
+    description:
+      'Alur operasional yang menghubungkan stok, pesanan, dan proses pemenuhan sesuai cara tim Anda bekerja.',
+    capabilities: ['Inventaris', 'Operasional pesanan', 'Alur fulfilment'],
   },
   {
     number: '04',
     icon: Ticket,
     title: 'E-ticketing',
-    description: 'Make every event easier to discover, book, and enter with ticketing built around your audience and operations.',
-    tags: ['Ticket sales', 'Check-in', 'Event operations'],
+    description:
+      'Satu alur yang jelas dari pembelian tiket sampai validasi kehadiran di hari acara.',
+    capabilities: ['Penjualan tiket', 'Data peserta', 'Check-in acara'],
   },
 ];
 
-const steps = [
-  ['01', 'Get clear', 'We map the real problem, the people around it, and the outcome your team needs.'],
-  ['02', 'Build together', 'Small, focused releases make progress visible and decisions easier to make.'],
-  ['03', 'Keep improving', 'We stay close after launch, using what we learn to make the system work harder.'],
+const projectSteps = [
+  {
+    number: '01',
+    title: 'Pahami kebutuhan',
+    description:
+      'Mulai dari tujuan bisnis, pengguna, alur kerja, dan sistem yang sudah digunakan.',
+  },
+  {
+    number: '02',
+    title: 'Susun arah',
+    description:
+      'Rangkum ruang lingkup, prioritas, dan pendekatan yang sesuai dengan kebutuhan.',
+  },
+  {
+    number: '03',
+    title: 'Rancang & bangun',
+    description:
+      'Kembangkan pengalaman dan sistem secara bertahap agar keputusan tetap jelas.',
+  },
+  {
+    number: '04',
+    title: 'Rilis & kembangkan',
+    description:
+      'Siapkan peluncuran, serah terima, dan dukungan lanjutan sesuai kesepakatan.',
+  },
+];
+
+const faqs = [
+  {
+    question: 'Apa saja yang bisa dibangun Fluxora?',
+    answer:
+      'Fluxora berfokus pada platform e-commerce, asisten AI, sistem ERP dan logistik, serta e-ticketing. Ruang lingkup setiap proyek ditentukan dari kebutuhan dan proses bisnis yang ingin diperbaiki.',
+  },
+  {
+    question: 'Bagaimana cara memulai proyek?',
+    answer:
+      'Mulai dengan menceritakan tujuan dan tantangan yang sedang dihadapi. Setelah kebutuhan awal dipahami, ruang lingkup dan pendekatan proyek dapat dibahas bersama.',
+  },
+  {
+    question: 'Apakah Fluxora dapat mengembangkan sistem yang sudah ada?',
+    answer:
+      'Kemungkinan pengembangan atau integrasi bergantung pada teknologi dan kondisi sistem yang digunakan. Informasi awal tentang sistem tersebut membantu menentukan langkah yang tepat.',
+  },
+  {
+    question: 'Bagaimana estimasi biaya dan waktu ditentukan?',
+    answer:
+      'Estimasi diberikan setelah tujuan, kebutuhan, integrasi, dan prioritas proyek dibahas. Setiap ruang lingkup memiliki kebutuhan yang berbeda.',
+  },
+  {
+    question: 'Apakah ada dukungan setelah peluncuran?',
+    answer:
+      'Kebutuhan pemeliharaan atau pengembangan lanjutan dapat dibahas saat menyusun ruang lingkup dan kesepakatan proyek.',
+  },
 ];
 
 function App() {
@@ -43,91 +104,167 @@ function App() {
   const closeMenu = () => setMenuOpen(false);
 
   return (
-    <main>
-      <header className="topbar">
-        <a className="brand" href="#top" aria-label="Fluxora Studio home" onClick={closeMenu}>
-          <span className="brand-mark"><i /><i /><i /></span>
-          <span>fluxora<span className="brand-light">studio</span></span>
+    <main id="top">
+      <header className="site-header">
+        <a className="brand" href="#top" aria-label="Fluxora Studio, halaman utama" onClick={closeMenu}>
+          <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
+          <span className="brand-name">fluxora<span>studio</span></span>
         </a>
-        <button className="menu-toggle" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+
+        <button
+          className="menu-toggle"
+          type="button"
+          aria-label={menuOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+          aria-expanded={menuOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
           {menuOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
-        <nav className={menuOpen ? 'nav nav-open' : 'nav'} aria-label="Main navigation">
-          <a href="#services" onClick={closeMenu}>What we build</a>
-          <a href="#approach" onClick={closeMenu}>How we work</a>
-          <a href="#about" onClick={closeMenu}>Studio</a>
-          <a className="nav-cta" href="#contact" onClick={closeMenu}>Start a conversation <ArrowUpRight size={15} /></a>
+
+        <nav id="primary-navigation" className={menuOpen ? 'primary-nav is-open' : 'primary-nav'} aria-label="Navigasi utama">
+          <a href="#layanan" onClick={closeMenu}>Layanan</a>
+          <a href="#pendekatan" onClick={closeMenu}>Pendekatan</a>
+          <a href="#studio" onClick={closeMenu}>Studio</a>
+          <a href="#faq" onClick={closeMenu}>FAQ</a>
+          <a className="nav-contact" href="#kontak" onClick={closeMenu}>Diskusikan proyek</a>
         </nav>
       </header>
 
-      <section className="hero" id="top">
+      <section className="hero page-shell" aria-labelledby="hero-title">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="eyebrow-rule" /> DIGITAL PRODUCT STUDIO <span className="eyebrow-loc">JAKARTA · INDONESIA</span></p>
-          <h1>Digital systems,<br /><span>made to move.</span></h1>
-          <p className="hero-lede">We turn complex operations into clear, capable software — from the first customer click to the work happening behind the scenes.</p>
+          <p className="eyebrow"><span /> DIGITAL PRODUCT STUDIO <b>·</b> FLUXORA</p>
+          <h1 id="hero-title">Sistem digital yang bergerak <em>seirama</em> dengan bisnis Anda.</h1>
+          <p className="hero-description">
+            Kami merancang dan membangun e-commerce, asisten AI, ERP & logistik, serta e-ticketing sesuai kebutuhan nyata bisnis.
+          </p>
           <div className="hero-actions">
-            <a href="#services" className="button button-primary">Explore our services <ArrowDown size={16} /></a>
-            <a href="#approach" className="text-link">Our approach <ArrowRight size={15} /></a>
+            <a className="button button-primary" href="#kontak">Diskusikan kebutuhan</a>
+            <a className="text-link" href="#layanan">Lihat layanan</a>
           </div>
-          <div className="hero-foot"><span>PRODUCT STRATEGY</span><b>·</b><span>DESIGN</span><b>·</b><span>ENGINEERING</span></div>
+          <div className="hero-note"><span>STRATEGI</span><i /><span>DESAIN</span><i /><span>ENGINEERING</span></div>
         </div>
-        <div className="hero-art" aria-label="Abstract visualization of connected digital systems" role="img">
-          <img className="hero-image" src="/fluxora-network.png" alt="" />
-          <div className="art-grid" />
-          <div className="art-orbit orbit-one" />
-          <div className="art-orbit orbit-two" />
-          <div className="art-orbit orbit-three" />
-          <div className="art-core"><span>FLUX</span><strong>↗</strong></div>
-          <div className="art-node node-commerce"><Box size={16} /><span>COMMERCE</span></div>
-          <div className="art-node node-ai"><BrainCircuit size={16} /><span>INTELLIGENCE</span></div>
-          <div className="art-node node-ops"><Route size={16} /><span>OPERATIONS</span></div>
-          <div className="art-node node-ticket"><Ticket size={16} /><span>EXPERIENCES</span></div>
-          <div className="art-coordinate coord-a">06°12' S / 106°49' E</div>
-          <div className="art-coordinate coord-b">SYSTEM MAP / 001</div>
-          <span className="art-spark spark-a" /><span className="art-spark spark-b" /><span className="art-spark spark-c" />
-        </div>
-        <div className="hero-index"><span>01 / 04</span><span className="index-line" /><span>BUILT FOR WHAT'S NEXT</span></div>
+
+        <figure className="hero-visual">
+          <div className="hero-visual-backdrop" />
+          <img src="/fluxora-network.png" alt="Visual abstrak jaringan digital yang menghubungkan beberapa sistem" />
+          <figcaption><span>FLUXORA STUDIO</span><span>EMPAT AREA KEAHLIAN</span></figcaption>
+          <span className="visual-index" aria-hidden="true">F—01</span>
+        </figure>
+        <div className="hero-bottomline" aria-hidden="true"><span>SOFTWARE BUILT AROUND THE WORK</span><span>01 — 04</span></div>
       </section>
 
-      <section className="intro-strip" id="about">
-        <span className="section-kicker">THE STUDIO</span>
-        <p>Good software makes the complicated feel <em>obvious.</em> We partner with ambitious teams to build the tools that let their ideas move at full speed.</p>
-        <span className="intro-mark">F<span>.</span></span>
+      <section className="studio-intro" id="studio">
+        <div className="section-label"><span>01</span><span>TENTANG FLUXORA</span></div>
+        <p>
+          Teknologi seharusnya membantu pekerjaan terasa lebih <em>jelas</em>—mulai dari pengalaman pelanggan hingga proses operasional sehari-hari.
+        </p>
+        <span className="intro-seal" aria-hidden="true">F<span>.</span></span>
       </section>
 
-      <section className="services section-pad" id="services">
+      <section className="services page-shell" id="layanan" aria-labelledby="services-title">
         <div className="section-heading">
-          <div><p className="eyebrow"><span className="eyebrow-rule" /> WHAT WE BUILD</p><h2>One partner.<br /><span>Four ways forward.</span></h2></div>
-          <p className="section-aside">Purpose-built digital products, designed around the people and processes that make your business run.</p>
+          <div>
+            <p className="eyebrow"><span /> LAYANAN</p>
+            <h2 id="services-title">Empat fokus.<br /><em>Satu arah yang jelas.</em></h2>
+          </div>
+          <p className="section-intro">
+            Pilih kebutuhan yang paling dekat dengan tantangan bisnis Anda. Ruang lingkup dan fitur disusun sesuai konteks proyek.
+          </p>
         </div>
         <div className="service-grid">
-          {offerings.map(({ number, icon: Icon, title, description, tags }) => (
+          {services.map(({ number, icon: Icon, title, description, capabilities }) => (
             <article className="service-card" key={number}>
-              <div className="service-top"><span className="service-number">{number} / 04</span><Icon size={20} strokeWidth={1.5} /></div>
+              <div className="service-card-top"><span>{number} / 04</span><Icon size={22} strokeWidth={1.5} aria-hidden="true" /></div>
               <h3>{title}</h3>
               <p>{description}</p>
-              <div className="service-tags">{tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-              <a className="card-link" href="#contact" aria-label={`Discuss ${title}`}><ArrowUpRight size={18} /></a>
+              <ul>{capabilities.map((capability) => <li key={capability}>{capability}</li>)}</ul>
+              <a href="#kontak" aria-label={`Diskusikan kebutuhan ${title}`}>Diskusikan kebutuhan <span aria-hidden="true">+</span></a>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="approach section-pad" id="approach">
-        <div className="approach-head"><p className="eyebrow"><span className="eyebrow-rule" /> HOW WE WORK</p><h2>Clarity first.<br /><span>Momentum always.</span></h2></div>
-        <div className="steps">
-          {steps.map(([number, title, text]) => <article className="step" key={number}><span className="step-no">{number}</span><div><h3>{title}</h3><p>{text}</p></div></article>)}
+      <section className="fit-check" aria-labelledby="fit-title">
+        <div className="fit-inner page-shell">
+          <div className="fit-heading">
+            <p className="eyebrow"><span /> MEMILIH PENDEKATAN</p>
+            <h2 id="fit-title">Tidak semua masalah perlu dibuatkan sistem baru.</h2>
+            <p>Solusi terbaik dimulai dari kebutuhan—bukan dari teknologi yang sedang populer.</p>
+          </div>
+          <div className="fit-columns">
+            <article>
+              <span className="fit-index">01 — MULAI SEDERHANA</span>
+              <h3>Platform siap pakai bisa cukup</h3>
+              <p>Jika kebutuhan masih umum, alur kerja sederhana, dan produk standar dapat membantu tim mulai lebih cepat.</p>
+            </article>
+            <article className="fit-custom">
+              <span className="fit-index">02 — PERTIMBANGKAN SISTEM KHUSUS</span>
+              <h3>Bangun sesuai alur bisnis</h3>
+              <p>Jika proses penting masih manual, alat yang ada tidak saling terhubung, atau kebutuhan tumbuh di luar batas platform standar.</p>
+            </article>
+          </div>
         </div>
-        <div className="approach-bottom"><span>FROM FIRST CONVERSATION TO WHAT'S NEXT</span><span className="approach-line" /><span>01 — 03</span></div>
       </section>
 
-      <section className="contact section-pad" id="contact">
-        <div className="contact-orb" aria-hidden="true"><span /><span /><span /></div>
-        <div className="contact-content"><p className="eyebrow"><span className="eyebrow-rule" /> YOUR NEXT CHAPTER</p><h2>Have a big<br />thing in mind?</h2><p>Tell us what you're trying to make possible. We'll help you figure out the next move.</p><a className="button button-light" href="mailto:hello@fluxorastudio.id?subject=Let%27s%20build%20something">Start a conversation <ArrowUpRight size={16} /></a></div>
-        <div className="contact-side"><span>FLUXORA STUDIO</span><span>BUILDING DIGITAL SYSTEMS<br />FOR AMBITIOUS TEAMS.</span><span>JAKARTA, INDONESIA<br />WORKING EVERYWHERE.</span></div>
+      <section className="approach" id="pendekatan" aria-labelledby="approach-title">
+        <div className="approach-inner page-shell">
+          <div className="approach-heading">
+            <p className="eyebrow"><span /> PENDEKATAN</p>
+            <h2 id="approach-title">Pekerjaan yang baik dimulai dengan <em>memahami.</em></h2>
+            <p>Setiap proyek bergerak dari konteks bisnis menuju solusi yang dapat digunakan dan dikembangkan.</p>
+            <a className="approach-link" href="#kontak">Mulai percakapan <span aria-hidden="true">+</span></a>
+          </div>
+          <div className="steps-list">
+            {projectSteps.map(({ number, title, description }) => (
+              <article className="step" key={number}>
+                <span className="step-number">{number}</span>
+                <div><h3>{title}</h3><p>{description}</p></div>
+                <Check size={16} aria-hidden="true" />
+              </article>
+            ))}
+          </div>
+          <div className="approach-footer"><span>ALUR PROYEK</span><span className="approach-rule" /><span>01 — 04</span></div>
+        </div>
       </section>
 
-      <footer className="footer"><a className="brand" href="#top"><span className="brand-mark"><i /><i /><i /></span><span>fluxora<span className="brand-light">studio</span></span></a><span>© 2026 FLUXORA STUDIO</span><a href="#top">BACK TO TOP ↑</a></footer>
+      <section className="faq page-shell" id="faq" aria-labelledby="faq-title">
+        <div className="faq-heading">
+          <p className="eyebrow"><span /> PERTANYAAN UMUM</p>
+          <h2 id="faq-title">Sebelum kita<br /><em>mulai bicara.</em></h2>
+          <p>Jawaban singkat untuk membantu Anda memahami langkah awal.</p>
+        </div>
+        <div className="faq-list">
+          {faqs.map(({ question, answer }) => (
+            <details key={question}>
+              <summary>{question}<span aria-hidden="true">+</span></summary>
+              <p>{answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section className="contact" id="kontak" aria-labelledby="contact-title">
+        <div className="contact-inner page-shell">
+          <div className="contact-copy">
+            <p className="eyebrow"><span /> LANGKAH BERIKUTNYA</p>
+            <h2 id="contact-title">Ada proses yang ingin Anda <em>perbaiki?</em></h2>
+            <p>Ceritakan kebutuhan dan tantangannya. Kita mulai dengan memahami masalah yang perlu diselesaikan.</p>
+            <a className="button button-light" href="mailto:hello@fluxorastudio.id?subject=Diskusi%20proyek%20Fluxora">Hubungi Fluxora</a>
+          </div>
+          <div className="contact-aside" aria-hidden="true"><span>F</span><i /><i /><i /></div>
+        </div>
+      </section>
+
+      <footer className="site-footer page-shell">
+        <a className="brand" href="#top" aria-label="Kembali ke atas">
+          <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
+          <span className="brand-name">fluxora<span>studio</span></span>
+        </a>
+        <span className="footer-caption">DIGITAL SYSTEMS, BUILT AROUND YOUR WORK.</span>
+        <a className="back-to-top" href="#top">KEMBALI KE ATAS</a>
+        <span className="copyright">© {new Date().getFullYear()} FLUXORA STUDIO</span>
+      </footer>
     </main>
   );
 }
