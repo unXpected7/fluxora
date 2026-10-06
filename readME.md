@@ -2,6 +2,8 @@
 
 Company profile and lead-generation site for Fluxora Studio, a digital product studio building commerce, AI, logistics, and ticketing software.
 
+The concert ticketing API is being developed in [`backend/`](backend/readMe.md). Its current scope and rollout status are tracked in [`docs/plansBE/eticket.md`](docs/plansBE/eticket.md).
+
 ## Local development
 
 Requirements: Node.js 22+ and npm.

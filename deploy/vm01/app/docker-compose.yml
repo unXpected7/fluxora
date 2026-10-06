@@ -14,3 +14,90 @@ services:
     restart: unless-stopped
     ports:
       - "10.10.0.2:8094:80"
+
+  dev-eticket-backend:
+    build:
+      context: ../../../backend
+    container_name: fluxora-dev-eticket-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      CLIENT_ORIGIN: https://dev.fluxorastudio.id
+      DATABASE_URL: ${FLUXORA_DEV_DATABASE_URL:-}
+      CHECKOUT_PAYMENT_PROVIDER: ${FLUXORA_DEV_CHECKOUT_PAYMENT_PROVIDER:-disabled}
+      RAJAONGKIR_PAYMENT_API_KEY: ${FLUXORA_DEV_RAJAONGKIR_PAYMENT_API_KEY:-}
+      RAJAONGKIR_QRIS_API_KEY: ${FLUXORA_DEV_RAJAONGKIR_QRIS_API_KEY:-}
+      RAJAONGKIR_QRIS_ID: ${FLUXORA_DEV_RAJAONGKIR_QRIS_ID:-}
+      RAJAONGKIR_API_BASE_URL: ${FLUXORA_DEV_RAJAONGKIR_API_BASE_URL:-https://api-sandbox.collaborator.komerce.id/user}
+      TICKET_QR_SIGNING_SECRET: ${FLUXORA_DEV_TICKET_QR_SIGNING_SECRET:-}
+      BREVO_API_KEY: ${FLUXORA_DEV_BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${FLUXORA_DEV_BREVO_SENDER_EMAIL:-}
+      BREVO_SENDER_NAME: ${FLUXORA_DEV_BREVO_SENDER_NAME:-Fluxora Tickets}
+      BREVO_API_BASE_URL: ${FLUXORA_DEV_BREVO_API_BASE_URL:-https://api.brevo.com/v3}
+      BREVO_SANDBOX: ${FLUXORA_DEV_BREVO_SANDBOX:-true}
+    ports:
+      - "10.10.0.2:5102:4000"
+    networks: [postgres]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dev-eticket-migrate:
+    build:
+      context: ../../../backend
+      target: build
+    profiles: [migrations]
+    environment:
+      DATABASE_URL: ${FLUXORA_DEV_DATABASE_URL:-}
+    networks: [postgres]
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+  prod-eticket-backend:
+    build:
+      context: ../../../backend
+    container_name: fluxora-prod-eticket-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      CLIENT_ORIGIN: https://fluxorastudio.id,https://www.fluxorastudio.id
+      DATABASE_URL: ${FLUXORA_PROD_DATABASE_URL:-}
+      CHECKOUT_PAYMENT_PROVIDER: ${FLUXORA_PROD_CHECKOUT_PAYMENT_PROVIDER:-disabled}
+      RAJAONGKIR_PAYMENT_API_KEY: ${FLUXORA_PROD_RAJAONGKIR_PAYMENT_API_KEY:-}
+      RAJAONGKIR_QRIS_API_KEY: ${FLUXORA_PROD_RAJAONGKIR_QRIS_API_KEY:-}
+      RAJAONGKIR_QRIS_ID: ${FLUXORA_PROD_RAJAONGKIR_QRIS_ID:-}
+      RAJAONGKIR_API_BASE_URL: ${FLUXORA_PROD_RAJAONGKIR_API_BASE_URL:-https://api.collaborator.komerce.id/user}
+      TICKET_QR_SIGNING_SECRET: ${FLUXORA_PROD_TICKET_QR_SIGNING_SECRET:-}
+      BREVO_API_KEY: ${FLUXORA_PROD_BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${FLUXORA_PROD_BREVO_SENDER_EMAIL:-}
+      BREVO_SENDER_NAME: ${FLUXORA_PROD_BREVO_SENDER_NAME:-Fluxora Tickets}
+      BREVO_API_BASE_URL: ${FLUXORA_PROD_BREVO_API_BASE_URL:-https://api.brevo.com/v3}
+      BREVO_SANDBOX: ${FLUXORA_PROD_BREVO_SANDBOX:-false}
+    ports:
+      - "10.10.0.2:5103:4000"
+    networks: [postgres]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  prod-eticket-migrate:
+    build:
+      context: ../../../backend
+      target: build
+    profiles: [migrations]
+    environment:
+      DATABASE_URL: ${FLUXORA_PROD_DATABASE_URL:-}
+    networks: [postgres]
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+networks:
+  postgres:
+    external: true
+    name: postgres_default

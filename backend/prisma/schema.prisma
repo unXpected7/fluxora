@@ -1,0 +1,523 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PerformanceStatus {
+  DRAFT
+  ON_SALE
+  PAUSED
+  CLOSED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+enum TicketStatus {
+  ACTIVE
+  CHECKED_IN
+  VOID
+  REFUNDED
+}
+
+enum TicketScanResult {
+  ACCEPTED
+  ALREADY_USED
+  VOID
+  WRONG_EVENT
+  OUTSIDE_WINDOW
+  UNKNOWN
+}
+
+enum StaffRole {
+  GATE
+  ADMIN
+}
+
+enum TicketDeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+enum PartnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum PlatformRole {
+  NONE
+  SUPERADMIN
+}
+
+enum PartnerMemberRole {
+  OWNER
+  ADMIN
+  EVENT_MANAGER
+  GATE
+}
+
+model Partner {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  status      PartnerStatus @default(PENDING)
+  contactEmail String?
+  events      Event[]
+  memberships PartnerMembership[]
+  apiKeys     PartnerApiKey[]
+  adminAudits AdminAudit[]
+  checkoutQuotes CheckoutQuote[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model Event {
+  id             String       @id @default(cuid())
+  partnerId      String
+  partner        Partner      @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  slug           String       @unique
+  title          String
+  summary        String?
+  description    String?
+  coverImageUrl  String?
+  venueName      String
+  venueAddress   String?
+  city           String
+  timezone       String       @default("Asia/Jakarta")
+  startsAt       DateTime
+  endsAt         DateTime
+  status         EventStatus  @default(DRAFT)
+  performances   Performance[]
+  bundles        Bundle[]
+  tickets        Ticket[]
+  staffAssignments EventStaffAssignment[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([status, startsAt])
+  @@index([partnerId, status, startsAt])
+}
+
+model Performance {
+  id               String            @id @default(cuid())
+  eventId          String
+  event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name             String
+  startsAt         DateTime
+  endsAt           DateTime
+  checkInOpensAt   DateTime?
+  checkInClosesAt  DateTime?
+  status           PerformanceStatus @default(DRAFT)
+  ticketTypes      TicketType[]
+  tickets          Ticket[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([eventId, startsAt])
+  @@index([status, startsAt])
+}
+
+model TicketType {
+  id             String                 @id @default(cuid())
+  performanceId  String
+  performance    Performance            @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  description    String?
+  price          Int
+  capacity       Int
+  sold           Int                    @default(0)
+  reserved       Int                    @default(0)
+  salesStartAt   DateTime?
+  salesEndAt     DateTime?
+  perOrderLimit  Int                    @default(10)
+  active         Boolean                @default(true)
+  bundleItems    BundleItem[]
+  quoteItems     CheckoutQuoteItem[]
+  reservationItems InventoryReservationItem[]
+  orderItems     OrderItem[]
+  tickets        Ticket[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@unique([performanceId, code])
+  @@index([performanceId, active, price])
+}
+
+model Bundle {
+  id            String       @id @default(cuid())
+  eventId       String
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  description   String?
+  price         Int
+  capacity      Int?
+  sold          Int          @default(0)
+  reserved      Int          @default(0)
+  perOrderLimit Int          @default(5)
+  salesStartAt  DateTime?
+  salesEndAt    DateTime?
+  active        Boolean      @default(true)
+  items         BundleItem[]
+  reservationItems InventoryReservationBundleItem[]
+  quoteItems    CheckoutQuoteItem[]
+  orderItems    OrderItem[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([eventId, code])
+  @@index([eventId, active, price])
+}
+
+model BundleItem {
+  id           String     @id @default(cuid())
+  bundleId     String
+  bundle       Bundle     @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  quantity     Int
+
+  @@unique([bundleId, ticketTypeId])
+}
+
+model CheckoutQuote {
+  id                 String                      @id @default(cuid())
+  partnerId          String
+  partner            Partner                     @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  accessTokenHash    String                      @unique
+  email              String
+  firstName          String?
+  lastName           String?
+  phone              String?
+  subtotal           Int
+  fees               Int                         @default(0)
+  total              Int
+  paymentProvider    String
+  expiresAt          DateTime
+  items              CheckoutQuoteItem[]
+  reservations       InventoryReservation[]
+  order              Order?
+  createdAt          DateTime                    @default(now())
+
+  @@index([expiresAt])
+  @@index([email, createdAt])
+  @@index([partnerId, createdAt])
+}
+
+model CheckoutQuoteItem {
+  id                 String        @id @default(cuid())
+  quoteId            String
+  quote              CheckoutQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  ticketTypeId       String?
+  ticketType         TicketType?   @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
+  bundleId           String?
+  bundle             Bundle?       @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+  itemType           String
+  nameSnapshot       String
+  unitPrice          Int
+  quantity           Int
+  admissionsPerUnit  Int
+  bundleSnapshot     Json?
+
+  @@index([quoteId])
+}
+
+model InventoryReservation {
+  id          String                       @id @default(cuid())
+  quoteId     String
+  quote       CheckoutQuote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  status      ReservationStatus            @default(ACTIVE)
+  expiresAt   DateTime
+  items       InventoryReservationItem[]
+  bundleItems InventoryReservationBundleItem[]
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+
+  @@index([status, expiresAt])
+  @@index([quoteId, status])
+}
+
+model InventoryReservationItem {
+  id            String               @id @default(cuid())
+  reservationId String
+  reservation   InventoryReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  ticketTypeId  String
+  ticketType    TicketType           @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  quantity      Int
+
+  @@unique([reservationId, ticketTypeId])
+}
+
+model InventoryReservationBundleItem {
+  id            String               @id @default(cuid())
+  reservationId String
+  reservation   InventoryReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  bundleId      String
+  bundle        Bundle               @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  quantity      Int
+
+  @@unique([reservationId, bundleId])
+}
+
+model Order {
+  id              String           @id @default(cuid())
+  orderNumber     String           @unique
+  checkoutQuoteId String           @unique
+  checkoutQuote   CheckoutQuote    @relation(fields: [checkoutQuoteId], references: [id], onDelete: Restrict)
+  idempotencyKey  String           @unique
+  email           String
+  firstName       String?
+  lastName        String?
+  phone           String?
+  status          OrderStatus      @default(PENDING)
+  paymentStatus   PaymentStatus    @default(PENDING)
+  subtotal        Int
+  fees            Int              @default(0)
+  total           Int
+  items           OrderItem[]
+  paymentAttempts PaymentAttempt[]
+  tickets         Ticket[]
+  events          OrderEvent[]
+  ticketDelivery  TicketDelivery?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([email, createdAt])
+  @@index([status, paymentStatus, createdAt])
+}
+
+model OrderItem {
+  id                 String      @id @default(cuid())
+  orderId            String
+  order              Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketTypeId       String?
+  ticketType         TicketType? @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
+  bundleId           String?
+  bundle             Bundle?     @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+  itemType           String
+  nameSnapshot       String
+  unitPrice          Int
+  quantity           Int
+  admissionsPerUnit  Int
+  bundleSnapshot     Json?
+  tickets            Ticket[]
+
+  @@index([orderId])
+}
+
+model PaymentAttempt {
+  id                    String        @id @default(cuid())
+  orderId               String
+  order                 Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider              String
+  providerOrderId       String        @unique
+  providerPaymentId     String?       @unique
+  amount                Int
+  currency              String        @default("IDR")
+  status                PaymentStatus @default(PENDING)
+  paymentType           String?
+  qrCodeUrl             String?
+  qrCodeContent         String?
+  expiresAt             DateTime?
+  sessionCreatingAt     DateTime?
+  sessionCreatedAt      DateTime?
+  notificationHash      String?       @unique
+  verifiedAt            DateTime?
+  providerStatus        String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([orderId, createdAt])
+  @@index([status, expiresAt])
+}
+
+model Ticket {
+  id              String       @id @default(cuid())
+  publicId        String       @unique @default(cuid())
+  qrTokenHash     String       @unique
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItemId     String
+  orderItem       OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  eventId         String
+  event           Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  performanceId   String
+  performance     Performance  @relation(fields: [performanceId], references: [id], onDelete: Restrict)
+  ticketTypeId    String
+  ticketType      TicketType   @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  status          TicketStatus @default(ACTIVE)
+  checkedInAt     DateTime?
+  scans           TicketScan[]
+  issuedAt        DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+
+  @@index([orderId])
+  @@index([eventId, performanceId, status])
+}
+
+model StaffUser {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  role         StaffRole      @default(GATE)
+  platformRole PlatformRole   @default(NONE)
+  active       Boolean        @default(true)
+  sessions     StaffSession[]
+  memberships  PartnerMembership[]
+  eventAssignments EventStaffAssignment[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model AdminAudit {
+  id         String   @id @default(cuid())
+  actorId    String
+  partnerId  String?
+  partner    Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  requestId  String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([partnerId, createdAt])
+}
+
+model PartnerMembership {
+  id        String           @id @default(cuid())
+  staffId   String
+  staff     StaffUser        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  partnerId String
+  partner   Partner          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  role      PartnerMemberRole
+  active    Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([staffId, partnerId])
+  @@index([partnerId, role, active])
+}
+
+model EventStaffAssignment {
+  id        String    @id @default(cuid())
+  eventId   String
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([eventId, staffId])
+  @@index([staffId, eventId])
+}
+
+model PartnerApiKey {
+  id          String    @id @default(cuid())
+  partnerId   String
+  partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name        String
+  keyPrefix   String
+  keyHash     String    @unique
+  scopes      String[]  @default([])
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  @@index([partnerId, revokedAt, expiresAt])
+}
+
+model StaffSession {
+  id        String    @id @default(cuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([staffId, expiresAt])
+  @@index([expiresAt])
+}
+
+model TicketScan {
+  id          String           @id @default(cuid())
+  ticketId    String?
+  ticket      Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  result      TicketScanResult
+  gate        String?
+  staffRef    String?
+  requestId   String?
+  scannedAt   DateTime         @default(now())
+
+  @@index([ticketId, scannedAt])
+  @@index([result, scannedAt])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  event     String
+  actor     String?
+  requestId String?
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model TicketDelivery {
+  id             String               @id @default(cuid())
+  orderId        String               @unique
+  order          Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  email          String
+  status         TicketDeliveryStatus @default(PENDING)
+  attempts       Int                  @default(0)
+  nextAttemptAt  DateTime             @default(now())
+  claimedAt      DateTime?
+  sentAt         DateTime?
+  lastError      String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([status, nextAttemptAt])
+}

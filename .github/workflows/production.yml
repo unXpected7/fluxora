@@ -26,9 +26,28 @@ jobs:
       - run: npm run lint
       - run: npm run build
 
+  verify-backend:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://fluxora:fluxora_ci@localhost:5432/fluxora_eticket
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run db:generate
+      - run: npx prisma validate
+      - run: npm run build
+
   deploy-production:
     if: github.event_name == 'push'
-    needs: [verify-frontend]
+    needs: [verify-frontend, verify-backend]
     runs-on: self-hosted
     environment: production
     steps:

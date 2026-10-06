@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxora-eticket-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fluxora
+      POSTGRES_PASSWORD: fluxora_local_dev
+      POSTGRES_DB: fluxora_eticket
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - fluxora-eticket-postgres-local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxora -d fluxora_eticket"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fluxora-eticket-postgres-local:
