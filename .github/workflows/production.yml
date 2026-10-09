@@ -52,7 +52,7 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Build and deploy production site
+      - name: Build and deploy production frontends
         run: |
-          docker compose -f deploy/vm01/app/docker-compose.yml up --build -d prod-frontend
-          docker compose -f deploy/vm01/app/docker-compose.yml ps prod-frontend
+          docker compose -f deploy/vm01/app/docker-compose.yml up --build -d prod-frontend prod-eticket-frontend prod-admin-frontend prod-partner-frontend
+          docker compose -f deploy/vm01/app/docker-compose.yml ps prod-frontend prod-eticket-frontend prod-admin-frontend prod-partner-frontend

@@ -1,3 +1,8 @@
+x-production-frontend: &production-frontend
+  build:
+    context: ../../../frontend
+  restart: unless-stopped
+
 services:
   dev-frontend:
     build:
@@ -8,12 +13,28 @@ services:
       - "10.10.0.2:8093:80"
 
   prod-frontend:
-    build:
-      context: ../../../frontend
+    <<: *production-frontend
     container_name: fluxora-prod-frontend
-    restart: unless-stopped
     ports:
       - "10.10.0.2:8094:80"
+
+  prod-eticket-frontend:
+    <<: *production-frontend
+    container_name: fluxora-prod-eticket-frontend
+    ports:
+      - "10.10.0.2:8095:80"
+
+  prod-admin-frontend:
+    <<: *production-frontend
+    container_name: fluxora-prod-admin-frontend
+    ports:
+      - "10.10.0.2:8096:80"
+
+  prod-partner-frontend:
+    <<: *production-frontend
+    container_name: fluxora-prod-partner-frontend
+    ports:
+      - "10.10.0.2:8097:80"
 
   dev-eticket-backend:
     build:

@@ -5,12 +5,15 @@ Fluxora's studio website is a static React/Vite site served by Nginx. The concer
 | Environment | Git branch | Hostnames | vm01 bind |
 |---|---|---|---|
 | Development | `main` | `dev.fluxorastudio.id` | `10.10.0.2:8093` |
-| Production | `prod` | `fluxorastudio.id`, `www.fluxorastudio.id` | `10.10.0.2:8094` |
+| Production main site | `prod` | `fluxorastudio.id`, `www.fluxorastudio.id` | `10.10.0.2:8094` |
 | Development ticketing portals | `main` | `dev-admin-eticket.fluxorastudio.id`, `dev-partner-eticket.fluxorastudio.id` | `10.10.0.2:8093` |
-| Production ticketing portals | `prod` | `admin-eticket.fluxorastudio.id`, `partner-eticket.fluxorastudio.id` | `10.10.0.2:8094` |
-| Production customer ticket storefront | `prod` | `e-ticket.fluxorastudio.id` | `10.10.0.2:8094` |
+| Production customer ticket storefront | `prod` | `e-ticket.fluxorastudio.id` | `10.10.0.2:8095` |
+| Production admin portal | `prod` | `admin-eticket.fluxorastudio.id` | `10.10.0.2:8096` |
+| Production partner portal | `prod` | `partner-eticket.fluxorastudio.id` | `10.10.0.2:8097` |
 | Development API | manual rollout | `dev-api-eticket.fluxorastudio.id` | `10.10.0.2:5102` |
 | Production API | manual rollout | `api-eticket.fluxorastudio.id` | `10.10.0.2:5103` |
+
+The four production frontend containers share the same frontend build but have separate lifecycles and WireGuard-bound ports. The app selects the storefront or staff portal from the browser hostname. The API uses its own backend container on port `5103`.
 
 ## vm01 setup
 
@@ -100,9 +103,9 @@ Public routing source files:
 - `deploy/nginx-public/dev-admin-eticket.fluxorastudio.id` → `10.10.0.2:8093`
 - `deploy/nginx-public/dev-partner-eticket.fluxorastudio.id` → `10.10.0.2:8093`
 - `deploy/nginx-public/fluxorastudio.id` → `10.10.0.2:8094`
-- `deploy/nginx-public/admin-eticket.fluxorastudio.id` → `10.10.0.2:8094`
-- `deploy/nginx-public/partner-eticket.fluxorastudio.id` → `10.10.0.2:8094`
-- `deploy/nginx-public/e-ticket.fluxorastudio.id` → `10.10.0.2:8094`
+- `deploy/nginx-public/e-ticket.fluxorastudio.id` → `10.10.0.2:8095`
+- `deploy/nginx-public/admin-eticket.fluxorastudio.id` → `10.10.0.2:8096`
+- `deploy/nginx-public/partner-eticket.fluxorastudio.id` → `10.10.0.2:8097`
 - `deploy/nginx-public/dev-api-eticket.fluxorastudio.id` → `10.10.0.2:5102`
 - `deploy/nginx-public/api-eticket.fluxorastudio.id` → `10.10.0.2:5103`
 
