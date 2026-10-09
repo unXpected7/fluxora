@@ -14,6 +14,6 @@ The public gateway proxies Fluxora hosts over WireGuard to vm01 (`10.10.0.2`).
 | `e-ticket.fluxorastudio.id` | `10.10.0.2:8094` |
 | `dev-api-eticket.fluxorastudio.id` | `10.10.0.2:5102` |
 | `api-eticket.fluxorastudio.id` | `10.10.0.2:5103` |
-| `manage-nginx.faizrasyid.my.id` | `10.10.0.2:81` (Nginx Proxy Manager admin UI) |
+| `manage-nginx.faizrasyid.my.id` | `10.10.0.2:9002` (Nginx UI dashboard) |
 
 Install the matching virtual host files on the public gateway, configure Cloudflare DNS, provision TLS certificates, test with `nginx -t`, and reload Nginx. See [deployment guide](../README.md).

@@ -1,0 +1,18 @@
+services:
+  nginx-ui:
+    image: uozi/nginx-ui:latest
+    container_name: nginx-ui
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: Asia/Jakarta
+      NGINX_UI_NODE_NAME: vm01-dashboard
+      NGINX_UI_NODE_SKIP_INSTALLATION: "true"
+      NGINX_UI_AUTH_TRUSTED_PROXIES: 10.10.0.1
+      NGINX_UI_IGNORE_DOCKER_SOCKET: "true"
+    ports:
+      - "10.10.0.2:9002:9000"
+    volumes:
+      - ./nginx-ui:/etc/nginx-ui
+      - ./nginx:/etc/nginx

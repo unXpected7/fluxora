@@ -34,3 +34,16 @@ See [deployment guide](deploy/README.md). The site is a static React/Vite fronte
 | Production | `fluxorastudio.id`, `www.fluxorastudio.id` | 8094 |
 
 Git remote: `git@github-personal:unxpected7/fluxora.git`.
+
+
+
+====
+cd backend
+FLUXORA_STAFF_EMAIL=you@example.com \
+FLUXORA_STAFF_PASSWORD='your-own-password-of-at-least-12-characters' \
+FLUXORA_STAFF_ROLE=SUPERADMIN \
+npm run staff:create
+
+curl -i -X POST http://localhost:4000/api/staff/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"your-own-password-of-at-least-12-characters"}'

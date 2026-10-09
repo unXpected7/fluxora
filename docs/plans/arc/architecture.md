@@ -1,0 +1,1 @@
+can you list down the ip wireguard, subdomain in the vps  171.22.173.4 i wnat manage that on the sub domain manage-nginx.faizrasyid.my.id for install nginx UI,i want store run it in vm01 . give me suggest

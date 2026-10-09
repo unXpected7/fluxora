@@ -27,11 +27,11 @@ The API Compose services join `postgres_default` and require the untracked vm01 
 
 The API's `CLIENT_ORIGIN` list includes the customer e-ticket origin for public catalogue and checkout requests. `STAFF_CLIENT_ORIGIN` is a separate, narrower list for staff routes and excludes `e-ticket.fluxorastudio.id`; keep these lists distinct when adding frontend hosts.
 
-## Nginx Proxy Manager on vm01
+## Manage VPS Nginx from vm01
 
-The Nginx Proxy Manager admin UI runs in Docker on vm01 and binds only to the WireGuard address `10.10.0.2:81`. The public VPS Nginx serves `manage-nginx.faizrasyid.my.id` over HTTPS and proxies the admin UI to vm01. This UI manages proxy hosts created inside Nginx Proxy Manager; it does not edit the existing public VPS Nginx configuration.
+Nginx UI runs as the dashboard on vm01 and listens on the WireGuard address `10.10.0.2:9002`. The public VPS Nginx serves `manage-nginx.faizrasyid.my.id` over HTTPS and proxies the dashboard to vm01. The VPS runs a separate Nginx UI peer on `10.10.0.1:9000`, also WireGuard-only. The peer is preconfigured in the vm01 dashboard using its node secret; select `public-vps` in the Nginx UI node switcher to edit the existing public virtual hosts. Nginx UI uses cluster peers for different machines; its host-via-SSH mode is for Nginx on the same machine. The dashboard ignores the Docker socket check because managing VM01's Docker engine is not part of this setup; VPS Nginx is managed by its systemd peer.
 
-Create `/home/vm01/nginx-proxy-manager/.env` with `INITIAL_ADMIN_EMAIL` and a unique `INITIAL_ADMIN_PASSWORD`, restrict it to the vm01 operator (`chmod 600`), copy `deploy/vm01/nginx-proxy-manager/docker-compose.yml` into that directory, and start it with `docker compose up -d`. The admin port is intentionally not published on vm01's public interface. Configure the matching public vhost from `deploy/nginx-public/manage-nginx.faizrasyid.my.id` on the VPS, issue its TLS certificate, then reload Nginx.
+Keep `/home/vm01/nginx-ui/.env` mode `600`; it contains the dashboard login password and VPS peer secret. The dashboard's node identity is stored in `/home/vm01/nginx-ui/nginx-ui`. Keep the VPS peer's `/usr/local/etc/nginx-ui/app.ini` root-readable only; it contains that peer's node secret. Bind the VPS peer to WireGuard and do not publish its API on the public interface. The VPS Nginx site and existing TLS certificates remain the public gateway. Back up `/etc/nginx` and `/etc/letsencrypt` before editing sites through the dashboard.
 
 ## Ticketing API release procedure
 
