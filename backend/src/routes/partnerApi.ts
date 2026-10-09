@@ -6,7 +6,12 @@ import { checkoutRouter } from './checkout.js'
 export const partnerApiRouter = Router()
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')
-const requests = new Map<string, { count: number; resetAt: number }>()
+let lastCleanupAt = 0
+
+export async function prunePartnerApiRequestWindows() {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60_000)
+  await prisma.partnerApiRequestWindow.deleteMany({ where: { windowStart: { lt: cutoff } } })
+}
 
 const authenticate: RequestHandler = async (request, response, next) => {
   try {
@@ -18,10 +23,19 @@ const authenticate: RequestHandler = async (request, response, next) => {
     if (!key || key.revokedAt || (key.expiresAt && key.expiresAt <= now) || key.partner.status !== 'ACTIVE') {
       response.status(401).json({ message: 'A valid partner API key is required' }); return
     }
-    const limit = requests.get(key.id)
-    if (!limit || limit.resetAt <= now.getTime()) requests.set(key.id, { count: 1, resetAt: now.getTime() + 60_000 })
-    else if (++limit.count > 120) { response.status(429).json({ message: 'API key rate limit exceeded' }); return }
-    if (requests.size > 5000) for (const [id, bucket] of requests) if (bucket.resetAt <= now.getTime()) requests.delete(id)
+    const windowStart = new Date(now)
+    windowStart.setUTCSeconds(0, 0)
+    const window = await prisma.partnerApiRequestWindow.upsert({
+      where: { apiKeyId_windowStart: { apiKeyId: key.id, windowStart } },
+      create: { apiKeyId: key.id, windowStart, requestCount: 1 },
+      update: { requestCount: { increment: 1 } },
+      select: { requestCount: true },
+    })
+    if (now.getTime() - lastCleanupAt > 60_000) {
+      lastCleanupAt = now.getTime()
+      void prunePartnerApiRequestWindows().catch(error => console.error(JSON.stringify({ event: 'partner_api_rate_window_cleanup_failed', errorName: error instanceof Error ? error.name : 'UnknownError' })))
+    }
+    if (window.requestCount > key.rateLimitPerMinute) { response.status(429).json({ message: 'API key rate limit exceeded' }); return }
     response.locals.partnerApiKeyId = key.id
     response.locals.partnerId = key.partnerId
     response.locals.partnerApiScopes = key.scopes

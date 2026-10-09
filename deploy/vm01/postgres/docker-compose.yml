@@ -1,0 +1,49 @@
+services:
+  eticket-postgres-dev:
+    image: postgres:16-alpine
+    container_name: fluxora-eticket-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${FLUXORA_DEV_POSTGRES_DB:?Set FLUXORA_DEV_POSTGRES_DB in the VM-only environment file}
+      POSTGRES_USER: ${FLUXORA_DEV_POSTGRES_USER:?Set FLUXORA_DEV_POSTGRES_USER in the VM-only environment file}
+      POSTGRES_PASSWORD: ${FLUXORA_DEV_POSTGRES_PASSWORD:?Set FLUXORA_DEV_POSTGRES_PASSWORD in the VM-only environment file}
+    ports:
+      - "192.168.100.35:5438:5432"
+    volumes:
+      - fluxora_eticket_postgres_dev_data:/var/lib/postgresql/data
+    networks: [postgres]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  eticket-postgres-prod:
+    image: postgres:16-alpine
+    container_name: fluxora-eticket-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${FLUXORA_PROD_POSTGRES_DB:?Set FLUXORA_PROD_POSTGRES_DB in the VM-only environment file}
+      POSTGRES_USER: ${FLUXORA_PROD_POSTGRES_USER:?Set FLUXORA_PROD_POSTGRES_USER in the VM-only environment file}
+      POSTGRES_PASSWORD: ${FLUXORA_PROD_POSTGRES_PASSWORD:?Set FLUXORA_PROD_POSTGRES_PASSWORD in the VM-only environment file}
+    ports:
+      - "127.0.0.1:5439:5432"
+    volumes:
+      - fluxora_eticket_postgres_prod_data:/var/lib/postgresql/data
+    networks: [postgres]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  fluxora_eticket_postgres_dev_data:
+    name: fluxora_eticket_postgres_dev_data
+  fluxora_eticket_postgres_prod_data:
+    name: fluxora_eticket_postgres_prod_data
+
+networks:
+  postgres:
+    external: true
+    name: postgres_default

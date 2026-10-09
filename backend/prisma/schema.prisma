@@ -89,117 +89,126 @@ enum PartnerMemberRole {
   GATE
 }
 
+enum PartnerWebhookDeliveryStatus {
+  PENDING
+  SENDING
+  DELIVERED
+  FAILED
+}
+
 model Partner {
-  id          String        @id @default(cuid())
-  slug        String        @unique
-  name        String
-  status      PartnerStatus @default(PENDING)
-  contactEmail String?
-  events      Event[]
-  memberships PartnerMembership[]
-  apiKeys     PartnerApiKey[]
-  adminAudits AdminAudit[]
+  id             String              @id @default(cuid())
+  slug           String              @unique
+  name           String
+  status         PartnerStatus       @default(PENDING)
+  contactEmail   String?
+  events         Event[]
+  memberships    PartnerMembership[]
+  invitations    StaffInvitation[]
+  apiKeys        PartnerApiKey[]
+  webhooks       PartnerWebhook[]
+  adminAudits    AdminAudit[]
   checkoutQuotes CheckoutQuote[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   @@index([status, createdAt])
 }
 
 model Event {
-  id             String       @id @default(cuid())
-  partnerId      String
-  partner        Partner      @relation(fields: [partnerId], references: [id], onDelete: Restrict)
-  slug           String       @unique
-  title          String
-  summary        String?
-  description    String?
-  coverImageUrl  String?
-  venueName      String
-  venueAddress   String?
-  city           String
-  timezone       String       @default("Asia/Jakarta")
-  startsAt       DateTime
-  endsAt         DateTime
-  status         EventStatus  @default(DRAFT)
-  performances   Performance[]
-  bundles        Bundle[]
-  tickets        Ticket[]
+  id               String                 @id @default(cuid())
+  partnerId        String
+  partner          Partner                @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  slug             String                 @unique
+  title            String
+  summary          String?
+  description      String?
+  coverImageUrl    String?
+  venueName        String
+  venueAddress     String?
+  city             String
+  timezone         String                 @default("Asia/Jakarta")
+  startsAt         DateTime
+  endsAt           DateTime
+  status           EventStatus            @default(DRAFT)
+  performances     Performance[]
+  bundles          Bundle[]
+  tickets          Ticket[]
   staffAssignments EventStaffAssignment[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   @@index([status, startsAt])
   @@index([partnerId, status, startsAt])
 }
 
 model Performance {
-  id               String            @id @default(cuid())
-  eventId          String
-  event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  name             String
-  startsAt         DateTime
-  endsAt           DateTime
-  checkInOpensAt   DateTime?
-  checkInClosesAt  DateTime?
-  status           PerformanceStatus @default(DRAFT)
-  ticketTypes      TicketType[]
-  tickets          Ticket[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id              String            @id @default(cuid())
+  eventId         String
+  event           Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name            String
+  startsAt        DateTime
+  endsAt          DateTime
+  checkInOpensAt  DateTime?
+  checkInClosesAt DateTime?
+  status          PerformanceStatus @default(DRAFT)
+  ticketTypes     TicketType[]
+  tickets         Ticket[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([eventId, startsAt])
   @@index([status, startsAt])
 }
 
 model TicketType {
-  id             String                 @id @default(cuid())
-  performanceId  String
-  performance    Performance            @relation(fields: [performanceId], references: [id], onDelete: Cascade)
-  code           String
-  name           String
-  description    String?
-  price          Int
-  capacity       Int
-  sold           Int                    @default(0)
-  reserved       Int                    @default(0)
-  salesStartAt   DateTime?
-  salesEndAt     DateTime?
-  perOrderLimit  Int                    @default(10)
-  active         Boolean                @default(true)
-  bundleItems    BundleItem[]
-  quoteItems     CheckoutQuoteItem[]
+  id               String                     @id @default(cuid())
+  performanceId    String
+  performance      Performance                @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  code             String
+  name             String
+  description      String?
+  price            Int
+  capacity         Int
+  sold             Int                        @default(0)
+  reserved         Int                        @default(0)
+  salesStartAt     DateTime?
+  salesEndAt       DateTime?
+  perOrderLimit    Int                        @default(10)
+  active           Boolean                    @default(true)
+  bundleItems      BundleItem[]
+  quoteItems       CheckoutQuoteItem[]
   reservationItems InventoryReservationItem[]
-  orderItems     OrderItem[]
-  tickets        Ticket[]
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  orderItems       OrderItem[]
+  tickets          Ticket[]
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 
   @@unique([performanceId, code])
   @@index([performanceId, active, price])
 }
 
 model Bundle {
-  id            String       @id @default(cuid())
-  eventId       String
-  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  code          String
-  name          String
-  description   String?
-  price         Int
-  capacity      Int?
-  sold          Int          @default(0)
-  reserved      Int          @default(0)
-  perOrderLimit Int          @default(5)
-  salesStartAt  DateTime?
-  salesEndAt    DateTime?
-  active        Boolean      @default(true)
-  items         BundleItem[]
+  id               String                           @id @default(cuid())
+  eventId          String
+  event            Event                            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  code             String
+  name             String
+  description      String?
+  price            Int
+  capacity         Int?
+  sold             Int                              @default(0)
+  reserved         Int                              @default(0)
+  perOrderLimit    Int                              @default(5)
+  salesStartAt     DateTime?
+  salesEndAt       DateTime?
+  active           Boolean                          @default(true)
+  items            BundleItem[]
   reservationItems InventoryReservationBundleItem[]
-  quoteItems    CheckoutQuoteItem[]
-  orderItems    OrderItem[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  quoteItems       CheckoutQuoteItem[]
+  orderItems       OrderItem[]
+  createdAt        DateTime                         @default(now())
+  updatedAt        DateTime                         @updatedAt
 
   @@unique([eventId, code])
   @@index([eventId, active, price])
@@ -217,23 +226,23 @@ model BundleItem {
 }
 
 model CheckoutQuote {
-  id                 String                      @id @default(cuid())
-  partnerId          String
-  partner            Partner                     @relation(fields: [partnerId], references: [id], onDelete: Restrict)
-  accessTokenHash    String                      @unique
-  email              String
-  firstName          String?
-  lastName           String?
-  phone              String?
-  subtotal           Int
-  fees               Int                         @default(0)
-  total              Int
-  paymentProvider    String
-  expiresAt          DateTime
-  items              CheckoutQuoteItem[]
-  reservations       InventoryReservation[]
-  order              Order?
-  createdAt          DateTime                    @default(now())
+  id              String                 @id @default(cuid())
+  partnerId       String
+  partner         Partner                @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  accessTokenHash String                 @unique
+  email           String
+  firstName       String?
+  lastName        String?
+  phone           String?
+  subtotal        Int
+  fees            Int                    @default(0)
+  total           Int
+  paymentProvider String
+  expiresAt       DateTime
+  items           CheckoutQuoteItem[]
+  reservations    InventoryReservation[]
+  order           Order?
+  createdAt       DateTime               @default(now())
 
   @@index([expiresAt])
   @@index([email, createdAt])
@@ -241,33 +250,33 @@ model CheckoutQuote {
 }
 
 model CheckoutQuoteItem {
-  id                 String        @id @default(cuid())
-  quoteId            String
-  quote              CheckoutQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  ticketTypeId       String?
-  ticketType         TicketType?   @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
-  bundleId           String?
-  bundle             Bundle?       @relation(fields: [bundleId], references: [id], onDelete: SetNull)
-  itemType           String
-  nameSnapshot       String
-  unitPrice          Int
-  quantity           Int
-  admissionsPerUnit  Int
-  bundleSnapshot     Json?
+  id                String        @id @default(cuid())
+  quoteId           String
+  quote             CheckoutQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  ticketTypeId      String?
+  ticketType        TicketType?   @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
+  bundleId          String?
+  bundle            Bundle?       @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+  itemType          String
+  nameSnapshot      String
+  unitPrice         Int
+  quantity          Int
+  admissionsPerUnit Int
+  bundleSnapshot    Json?
 
   @@index([quoteId])
 }
 
 model InventoryReservation {
-  id          String                       @id @default(cuid())
+  id          String                           @id @default(cuid())
   quoteId     String
-  quote       CheckoutQuote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  status      ReservationStatus            @default(ACTIVE)
+  quote       CheckoutQuote                    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  status      ReservationStatus                @default(ACTIVE)
   expiresAt   DateTime
   items       InventoryReservationItem[]
   bundleItems InventoryReservationBundleItem[]
-  createdAt   DateTime                     @default(now())
-  updatedAt   DateTime                     @updatedAt
+  createdAt   DateTime                         @default(now())
+  updatedAt   DateTime                         @updatedAt
 
   @@index([status, expiresAt])
   @@index([quoteId, status])
@@ -323,86 +332,87 @@ model Order {
 }
 
 model OrderItem {
-  id                 String      @id @default(cuid())
-  orderId            String
-  order              Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  ticketTypeId       String?
-  ticketType         TicketType? @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
-  bundleId           String?
-  bundle             Bundle?     @relation(fields: [bundleId], references: [id], onDelete: SetNull)
-  itemType           String
-  nameSnapshot       String
-  unitPrice          Int
-  quantity           Int
-  admissionsPerUnit  Int
-  bundleSnapshot     Json?
-  tickets            Ticket[]
+  id                String      @id @default(cuid())
+  orderId           String
+  order             Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketTypeId      String?
+  ticketType        TicketType? @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
+  bundleId          String?
+  bundle            Bundle?     @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+  itemType          String
+  nameSnapshot      String
+  unitPrice         Int
+  quantity          Int
+  admissionsPerUnit Int
+  bundleSnapshot    Json?
+  tickets           Ticket[]
 
   @@index([orderId])
 }
 
 model PaymentAttempt {
-  id                    String        @id @default(cuid())
-  orderId               String
-  order                 Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  provider              String
-  providerOrderId       String        @unique
-  providerPaymentId     String?       @unique
-  amount                Int
-  currency              String        @default("IDR")
-  status                PaymentStatus @default(PENDING)
-  paymentType           String?
-  qrCodeUrl             String?
-  qrCodeContent         String?
-  expiresAt             DateTime?
-  sessionCreatingAt     DateTime?
-  sessionCreatedAt      DateTime?
-  notificationHash      String?       @unique
-  verifiedAt            DateTime?
-  providerStatus        String?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  id                String        @id @default(cuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider          String
+  providerOrderId   String        @unique
+  providerPaymentId String?       @unique
+  amount            Int
+  currency          String        @default("IDR")
+  status            PaymentStatus @default(PENDING)
+  paymentType       String?
+  qrCodeUrl         String?
+  qrCodeContent     String?
+  expiresAt         DateTime?
+  sessionCreatingAt DateTime?
+  sessionCreatedAt  DateTime?
+  notificationHash  String?       @unique
+  verifiedAt        DateTime?
+  providerStatus    String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@index([orderId, createdAt])
   @@index([status, expiresAt])
 }
 
 model Ticket {
-  id              String       @id @default(cuid())
-  publicId        String       @unique @default(cuid())
-  qrTokenHash     String       @unique
-  orderId         String
-  order           Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  orderItemId     String
-  orderItem       OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
-  eventId         String
-  event           Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  performanceId   String
-  performance     Performance  @relation(fields: [performanceId], references: [id], onDelete: Restrict)
-  ticketTypeId    String
-  ticketType      TicketType   @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
-  status          TicketStatus @default(ACTIVE)
-  checkedInAt     DateTime?
-  scans           TicketScan[]
-  issuedAt        DateTime     @default(now())
-  createdAt       DateTime     @default(now())
+  id            String       @id @default(cuid())
+  publicId      String       @unique @default(cuid())
+  qrTokenHash   String       @unique
+  orderId       String
+  order         Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItemId   String
+  orderItem     OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  eventId       String
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  performanceId String
+  performance   Performance  @relation(fields: [performanceId], references: [id], onDelete: Restrict)
+  ticketTypeId  String
+  ticketType    TicketType   @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  status        TicketStatus @default(ACTIVE)
+  checkedInAt   DateTime?
+  scans         TicketScan[]
+  issuedAt      DateTime     @default(now())
+  createdAt     DateTime     @default(now())
 
   @@index([orderId])
   @@index([eventId, performanceId, status])
 }
 
 model StaffUser {
-  id           String         @id @default(cuid())
-  email        String         @unique
-  passwordHash String
-  role         StaffRole      @default(GATE)
-  platformRole PlatformRole   @default(NONE)
-  active       Boolean        @default(true)
-  sessions     StaffSession[]
-  memberships  PartnerMembership[]
+  id               String                 @id @default(cuid())
+  email            String                 @unique
+  passwordHash     String
+  role             StaffRole              @default(GATE)
+  platformRole     PlatformRole           @default(NONE)
+  active           Boolean                @default(true)
+  sessions         StaffSession[]
+  memberships      PartnerMembership[]
+  invitations      StaffInvitation[]
   eventAssignments EventStaffAssignment[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 }
 
 model AdminAudit {
@@ -423,18 +433,38 @@ model AdminAudit {
 }
 
 model PartnerMembership {
-  id        String           @id @default(cuid())
+  id        String            @id @default(cuid())
   staffId   String
-  staff     StaffUser        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  staff     StaffUser         @relation(fields: [staffId], references: [id], onDelete: Cascade)
   partnerId String
-  partner   Partner          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partner   Partner           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   role      PartnerMemberRole
-  active    Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 
   @@unique([staffId, partnerId])
   @@index([partnerId, role, active])
+}
+
+model StaffInvitation {
+  id          String            @id @default(cuid())
+  partnerId   String
+  partner     Partner           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  email       String
+  role        PartnerMemberRole
+  tokenHash   String            @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  StaffUser   StaffUser?        @relation(fields: [staffUserId], references: [id])
+  staffUserId String?
+
+  @@index([partnerId, email, createdAt])
+  @@index([expiresAt, acceptedAt, revokedAt])
 }
 
 model EventStaffAssignment {
@@ -450,20 +480,73 @@ model EventStaffAssignment {
 }
 
 model PartnerApiKey {
-  id          String    @id @default(cuid())
-  partnerId   String
-  partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  name        String
-  keyPrefix   String
-  keyHash     String    @unique
-  scopes      String[]  @default([])
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
-  revokedAt   DateTime?
-  createdById String
-  createdAt   DateTime  @default(now())
+  id                 String                    @id @default(cuid())
+  partnerId          String
+  partner            Partner                   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name               String
+  keyPrefix          String
+  keyHash            String                    @unique
+  scopes             String[]                  @default([])
+  rateLimitPerMinute Int                       @default(120)
+  lastUsedAt         DateTime?
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  rotatedToId        String?
+  rotationGraceUntil DateTime?
+  createdById        String
+  createdAt          DateTime                  @default(now())
+  requestWindows     PartnerApiRequestWindow[]
 
   @@index([partnerId, revokedAt, expiresAt])
+}
+
+model PartnerApiRequestWindow {
+  apiKeyId     String
+  apiKey       PartnerApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  windowStart  DateTime
+  requestCount Int           @default(0)
+
+  @@id([apiKeyId, windowStart])
+  @@index([windowStart])
+}
+
+model PartnerWebhook {
+  id                String                   @id @default(cuid())
+  partnerId         String
+  partner           Partner                  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name              String
+  url               String
+  encryptedSecret   String
+  signingKeyVersion Int                      @default(1)
+  eventTypes        String[]                 @default([])
+  active            Boolean                  @default(true)
+  deliveries        PartnerWebhookDelivery[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@index([partnerId, active])
+}
+
+model PartnerWebhookDelivery {
+  id             String                       @id @default(cuid())
+  webhookId      String
+  webhook        PartnerWebhook               @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  sourceEventId  String
+  eventType      String
+  payload        Json
+  status         PartnerWebhookDeliveryStatus @default(PENDING)
+  attempts       Int                          @default(0)
+  nextAttemptAt  DateTime                     @default(now())
+  claimedAt      DateTime?
+  deliveredAt    DateTime?
+  lastStatusCode Int?
+  lastError      String?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  @@unique([webhookId, sourceEventId])
+  @@index([status, nextAttemptAt])
+  @@index([webhookId, createdAt])
 }
 
 model StaffSession {
@@ -479,14 +562,14 @@ model StaffSession {
 }
 
 model TicketScan {
-  id          String           @id @default(cuid())
-  ticketId    String?
-  ticket      Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Restrict)
-  result      TicketScanResult
-  gate        String?
-  staffRef    String?
-  requestId   String?
-  scannedAt   DateTime         @default(now())
+  id        String           @id @default(cuid())
+  ticketId  String?
+  ticket    Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  result    TicketScanResult
+  gate      String?
+  staffRef  String?
+  requestId String?
+  scannedAt DateTime         @default(now())
 
   @@index([ticketId, scannedAt])
   @@index([result, scannedAt])
@@ -506,18 +589,18 @@ model OrderEvent {
 }
 
 model TicketDelivery {
-  id             String               @id @default(cuid())
-  orderId        String               @unique
-  order          Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  email          String
-  status         TicketDeliveryStatus @default(PENDING)
-  attempts       Int                  @default(0)
-  nextAttemptAt  DateTime             @default(now())
-  claimedAt      DateTime?
-  sentAt         DateTime?
-  lastError      String?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  id            String               @id @default(cuid())
+  orderId       String               @unique
+  order         Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  email         String
+  status        TicketDeliveryStatus @default(PENDING)
+  attempts      Int                  @default(0)
+  nextAttemptAt DateTime             @default(now())
+  claimedAt     DateTime?
+  sentAt        DateTime?
+  lastError     String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@index([status, nextAttemptAt])
 }

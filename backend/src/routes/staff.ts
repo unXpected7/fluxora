@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto'
 import { Router, type RequestHandler } from 'express'
-import { currentStaff, createStaffSession, deleteStaffSession, clearStaffCookie, setStaffCookie, verifyStaffPassword } from '../lib/staffAuth.js'
+import { currentStaff, createStaffSession, deleteStaffSession, clearStaffCookie, setStaffCookie, verifyStaffPassword, hashStaffPassword } from '../lib/staffAuth.js'
 import { prisma } from '../lib/prisma.js'
 import { verifyTicketQrToken } from '../lib/ticketQr.js'
 import { config } from '../lib/config.js'
@@ -27,7 +28,57 @@ function rateLimit(limit: number, windowMs: number): RequestHandler {
 }
 
 const authLimit = rateLimit(10, 15 * 60 * 1000)
+const invitationLimit = rateLimit(5, 15 * 60 * 1000)
 const scanLimit = rateLimit(60, 60 * 1000)
+
+function invitationTokenHash(value: unknown) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{40,50}$/.test(value)) return null
+  return createHash('sha256').update(value).digest('hex')
+}
+
+staffRouter.post('/auth/invitations/preview', invitationLimit, async (request, response, next) => {
+  try {
+    const tokenHash = invitationTokenHash(request.body?.token)
+    const invitation = tokenHash ? await prisma.staffInvitation.findUnique({ where: { tokenHash }, include: { partner: { select: { name: true, status: true } } } }) : null
+    if (!invitation || invitation.acceptedAt || invitation.revokedAt || invitation.expiresAt <= new Date() || invitation.partner.status === 'SUSPENDED') {
+      response.status(400).json({ message: 'Invitation is invalid or expired' }); return
+    }
+    const existing = await prisma.staffUser.findUnique({ where: { email: invitation.email }, select: { active: true } })
+    if (existing && !existing.active) { response.status(400).json({ message: 'Invitation is invalid or expired' }); return }
+    response.json({ email: invitation.email, role: invitation.role, partnerName: invitation.partner.name, partnerStatus: invitation.partner.status, expiresAt: invitation.expiresAt, requiresPassword: !existing })
+  } catch (error) { next(error) }
+})
+
+staffRouter.post('/auth/invitations/accept', invitationLimit, async (request, response, next) => {
+  try {
+    const tokenHash = invitationTokenHash(request.body?.token)
+    const invitation = tokenHash ? await prisma.staffInvitation.findUnique({ where: { tokenHash }, include: { partner: { select: { id: true, slug: true, name: true, status: true } } } }) : null
+    if (!invitation || invitation.acceptedAt || invitation.revokedAt || invitation.expiresAt <= new Date() || invitation.partner.status === 'SUSPENDED') {
+      response.status(400).json({ message: 'Invitation is invalid or expired' }); return
+    }
+    const currentStaffUser = await prisma.staffUser.findUnique({ where: { email: invitation.email } })
+    if (currentStaffUser && !currentStaffUser.active) { response.status(400).json({ message: 'Invitation is invalid or expired' }); return }
+    const password = typeof request.body?.password === 'string' ? request.body.password : ''
+    if (!currentStaffUser && (password.length < 12 || password.length > 128)) {
+      response.status(400).json({ message: 'Password must contain 12 to 128 characters' }); return
+    }
+    const passwordHash = currentStaffUser ? null : await hashStaffPassword(password)
+    const accepted = await prisma.$transaction(async transaction => {
+      const claim = await transaction.staffInvitation.updateMany({ where: { id: invitation.id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date() } })
+      if (claim.count !== 1) throw new Error('Invitation is invalid or expired')
+      const staff = currentStaffUser ?? await transaction.staffUser.create({ data: { email: invitation.email, passwordHash: passwordHash!, role: invitation.role === 'GATE' ? 'GATE' : 'ADMIN' } })
+      if (!staff.active) throw new Error('Invitation is invalid or expired')
+      await transaction.partnerMembership.upsert({ where: { staffId_partnerId: { staffId: staff.id, partnerId: invitation.partnerId } }, create: { staffId: staff.id, partnerId: invitation.partnerId, role: invitation.role }, update: { role: invitation.role, active: true } })
+      await transaction.adminAudit.create({ data: { actorId: staff.id, partnerId: invitation.partnerId, action: 'partner.staff_invitation_accepted', entityType: 'StaffInvitation', entityId: invitation.id, payload: { email: invitation.email, role: invitation.role } } })
+      return staff
+    })
+    setStaffCookie(response, await createStaffSession(accepted.id))
+    response.json({ accepted: true, partner: { slug: invitation.partner.slug, name: invitation.partner.name } })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Invitation is invalid or expired') response.status(400).json({ message: error.message })
+    else next(error)
+  }
+})
 
 staffRouter.post('/auth/login', authLimit, async (request, response, next) => {
   try {

@@ -12,6 +12,7 @@ import { webhooksRouter } from './routes/webhooks.js'
 import { staffRouter } from './routes/staff.js'
 import { processTicketDeliveries } from './lib/ticketDelivery.js'
 import { partnerApiRouter } from './routes/partnerApi.js'
+import { processPartnerWebhookDeliveries } from './lib/partnerWebhooks.js'
 
 const app = express()
 
@@ -78,7 +79,11 @@ if (config.nodeEnv !== 'test') {
     void processTicketDeliveries().catch(error => console.error(JSON.stringify({ event: 'ticket_delivery_worker_failed', errorName: error instanceof Error ? error.name : 'UnknownError' })))
   }, 15_000)
   ticketDeliveryWorker.unref()
-  const shutdown = () => { clearInterval(reservationWorker); clearInterval(ticketDeliveryWorker); server.close(() => void prisma.$disconnect()) }
+  const partnerWebhookWorker = setInterval(() => {
+    void processPartnerWebhookDeliveries().catch(error => console.error(JSON.stringify({ event: 'partner_webhook_delivery_failed', errorName: error instanceof Error ? error.name : 'UnknownError' })))
+  }, 5_000)
+  partnerWebhookWorker.unref()
+  const shutdown = () => { clearInterval(reservationWorker); clearInterval(ticketDeliveryWorker); clearInterval(partnerWebhookWorker); server.close(() => void prisma.$disconnect()) }
   process.once('SIGTERM', shutdown)
   process.once('SIGINT', shutdown)
 }

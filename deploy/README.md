@@ -6,6 +6,8 @@ Fluxora's studio website is a static React/Vite site served by Nginx. The concer
 |---|---|---|---|
 | Development | `main` | `dev.fluxorastudio.id` | `10.10.0.2:8093` |
 | Production | `prod` | `fluxorastudio.id`, `www.fluxorastudio.id` | `10.10.0.2:8094` |
+| Development ticketing portals | `main` | `dev-admin-eticket.fluxorastudio.id`, `dev-partner-eticket.fluxorastudio.id` | `10.10.0.2:8093` |
+| Production ticketing portals | `prod` | `admin-eticket.fluxorastudio.id`, `partner-eticket.fluxorastudio.id` | `10.10.0.2:8094` |
 | Development API | manual rollout | `dev-api-eticket.fluxorastudio.id` | `10.10.0.2:5102` |
 | Production API | manual rollout | `api-eticket.fluxorastudio.id` | `10.10.0.2:5103` |
 
@@ -18,27 +20,35 @@ cd ~/fluxora
 docker compose -f deploy/vm01/app/docker-compose.yml up --build -d dev-frontend
 ```
 
-The current GitHub Actions workflows deploy the frontend on pushes after frontend verification. Pull requests and pushes also build the backend and validate its Prisma schema; they do not deploy the ticketing API. Provision separate databases before running the API migrations or starting either API service.
+The current GitHub Actions workflows deploy the frontend on pushes after frontend verification. Pull requests and pushes also build the backend and validate its Prisma schema; they do not deploy the ticketing API. The isolated Fluxora dev/prod PostgreSQL containers have been provisioned on vm01; migrations and API deployment remain separate manual steps.
 
-The API Compose services join `postgres_default` and require the untracked vm01 environment file to define `FLUXORA_DEV_DATABASE_URL` and `FLUXORA_PROD_DATABASE_URL`. Provision separate Fluxora databases before starting those services. Payment defaults to disabled in both environments; the RajaOngkir QRISLY adapter is implemented, but live payment must remain disabled until sandbox and merchant-account validation is complete.
+The API Compose services join `postgres_default` and require the untracked vm01 environment file to define `FLUXORA_DEV_DATABASE_URL` and `FLUXORA_PROD_DATABASE_URL`. A dedicated PostgreSQL Compose stack is in `deploy/vm01/postgres/docker-compose.yml`: dev binds to `192.168.100.35:5438`, prod binds to `127.0.0.1:5439`, and each has an independent named volume on `postgres_default`. Keep its `.env` on vm01 only. Payment defaults to disabled in both environments; the RajaOngkir QRISLY adapter is implemented, but live payment must remain disabled until sandbox and merchant-account validation is complete.
 
 ## Ticketing API release procedure
+
+### Provision the Fluxora ticketing databases
+
+On vm01, create `/home/vm01/fluxora/postgres/.env` from `deploy/vm01/postgres/.env.example`, set independent random dev/prod passwords, and restrict the file to the vm01 operator (`chmod 600`). Keep the database stack and its environment file outside the ephemeral GitHub Actions checkout. Start the isolated database services:
+
+```sh
+cd /home/vm01/fluxora/postgres
+docker compose --env-file .env -p fluxora-eticket-db -f docker-compose.yml up -d
+docker compose --env-file .env -p fluxora-eticket-db -f docker-compose.yml ps
+```
+
+Use the internal hosts `fluxora-eticket-postgres-dev:5432` and `fluxora-eticket-postgres-prod:5432` for services on `postgres_default`. The example environment file includes `FLUXORA_DEV_DATABASE_URL` and `FLUXORA_PROD_DATABASE_URL` for the API migration/deployment Compose commands. The development database binds to the private VM interface on 5438; production binds only to localhost on 5439. Do not point either URL at Nilam's databases.
 
 The API has explicit migration-only Compose services. They use the backend build stage, which includes the Prisma CLI, and are excluded from normal `docker compose up` by the `migrations` profile. Back up the target database before applying migrations. On vm01, load the private environment file and apply development migrations before starting the API:
 
 ```sh
-cd ~/fluxora
-set -a
-. ./.env
-set +a
-test -n "$FLUXORA_DEV_DATABASE_URL"
-docker compose --env-file .env -f deploy/vm01/app/docker-compose.yml --profile migrations run --rm dev-eticket-migrate
-docker compose --env-file .env -f deploy/vm01/app/docker-compose.yml up --build -d dev-eticket-backend
-docker compose --env-file .env -f deploy/vm01/app/docker-compose.yml ps dev-eticket-backend
+cd /home/vm01/fluxora-actions-runner/_work/fluxora/fluxora
+docker compose --env-file /home/vm01/fluxora/postgres/.env -f deploy/vm01/app/docker-compose.yml --profile migrations run --rm dev-eticket-migrate
+docker compose --env-file /home/vm01/fluxora/postgres/.env -f deploy/vm01/app/docker-compose.yml up --build -d dev-eticket-backend
+docker compose --env-file /home/vm01/fluxora/postgres/.env -f deploy/vm01/app/docker-compose.yml ps dev-eticket-backend
 curl -fsS http://10.10.0.2:5102/readyz
 ```
 
-Repeat with `FLUXORA_PROD_DATABASE_URL`, `prod-eticket-migrate`, `prod-eticket-backend`, and port `5103` only after the dev rollout and production approval. Configure `FLUXORA_*_BREVO_*` separately; absent email credentials leave deliveries queued. Dev Brevo sandbox mode defaults to true.
+Repeat with `prod-eticket-migrate`, `prod-eticket-backend`, and port `5103` only after the dev rollout and production approval. Add provider, email, and webhook encryption credentials to `/home/vm01/fluxora/postgres/.env` only when those features are approved; use independent 32-byte webhook encryption keys per environment. Dev Brevo sandbox mode defaults to true.
 
 ## Database backup and rollback
 
@@ -55,13 +65,17 @@ Migrations are forward-only. For an application-only rollback, check out the rec
 
 ## Public gateway setup
 
-Create the Cloudflare DNS records for `dev`, apex, and `www` pointing to the public gateway. The current hostname requests are reaching the gateway's default PMeme Handal API vhost, so the Fluxora vhosts below must be enabled before the domains will serve this frontend.
+Create Cloudflare DNS records for the frontend, ticketing portal, and API hostnames in the table above, pointing to the public gateway. The current hostname requests are reaching the gateway's default PMeme Handal API vhost, so the Fluxora vhosts below must be enabled before the domains will serve this frontend.
 
 For the first certificate issuance, install temporary HTTP-only vhosts for the frontend hostnames and the two API hostnames that serve `/.well-known/acme-challenge/` from `/var/www/certbot` (create that directory first). Keep Cloudflare proxying enabled only if HTTP challenge traffic is allowed through; otherwise temporarily set the records to DNS-only while issuing. Then run:
 
 ```sh
 sudo certbot certonly --webroot -w /var/www/certbot -d dev.fluxorastudio.id
+sudo certbot certonly --webroot -w /var/www/certbot -d dev-admin-eticket.fluxorastudio.id
+sudo certbot certonly --webroot -w /var/www/certbot -d dev-partner-eticket.fluxorastudio.id
 sudo certbot certonly --webroot -w /var/www/certbot -d fluxorastudio.id -d www.fluxorastudio.id
+sudo certbot certonly --webroot -w /var/www/certbot -d admin-eticket.fluxorastudio.id
+sudo certbot certonly --webroot -w /var/www/certbot -d partner-eticket.fluxorastudio.id
 sudo certbot certonly --webroot -w /var/www/certbot -d dev-api-eticket.fluxorastudio.id
 sudo certbot certonly --webroot -w /var/www/certbot -d api-eticket.fluxorastudio.id
 ```
@@ -73,7 +87,11 @@ The production frontend certificate shown in the vhost must cover both `fluxoras
 Public routing source files:
 
 - `deploy/nginx-public/dev.fluxorastudio.id` → `10.10.0.2:8093`
+- `deploy/nginx-public/dev-admin-eticket.fluxorastudio.id` → `10.10.0.2:8093`
+- `deploy/nginx-public/dev-partner-eticket.fluxorastudio.id` → `10.10.0.2:8093`
 - `deploy/nginx-public/fluxorastudio.id` → `10.10.0.2:8094`
+- `deploy/nginx-public/admin-eticket.fluxorastudio.id` → `10.10.0.2:8094`
+- `deploy/nginx-public/partner-eticket.fluxorastudio.id` → `10.10.0.2:8094`
 - `deploy/nginx-public/dev-api-eticket.fluxorastudio.id` → `10.10.0.2:5102`
 - `deploy/nginx-public/api-eticket.fluxorastudio.id` → `10.10.0.2:5103`
 

@@ -47,9 +47,10 @@ function parseProviderDate(value: string | undefined) {
 }
 
 async function apiRequest(path: string, apiKey: string, init: RequestInit = {}) {
+  const url = `${apiBaseUrl()}${path}`
   let response: Response
   try {
-    response = await fetch(`${apiBaseUrl()}${path}`, {
+    response = await fetch(url, {
       ...init,
       signal: AbortSignal.timeout(12_000),
       headers: { 'x-api-key': apiKey, accept: 'application/json', ...init.headers },

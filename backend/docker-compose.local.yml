@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: fluxora_local_dev
       POSTGRES_DB: fluxora_eticket
     ports:
-      - "127.0.0.1:5436:5432"
+      - "127.0.0.1:5439:5432"
     volumes:
       - fluxora-eticket-postgres-local:/var/lib/postgresql/data
     healthcheck:

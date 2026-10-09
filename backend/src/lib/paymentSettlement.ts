@@ -3,6 +3,7 @@ import { prisma } from './prisma.js'
 import { paymentProvider } from './paymentProvider.js'
 import { releaseExpiredReservations } from './inventoryReservations.js'
 import { newPublicTicketId, ticketQrTokenHash } from './ticketQr.js'
+import { enqueuePartnerWebhook } from './partnerWebhooks.js'
 
 type SnapshotComponent = { ticketTypeId: string; performanceId: string; quantity: number }
 
@@ -46,7 +47,8 @@ async function settlePaid(attemptId: string, providerAmount: number, paidAt: Dat
       const orderChanged = await transaction.order.updateMany({ where: { id: attempt.orderId, status: { in: ['PENDING', 'CANCELLED'] }, paymentStatus: { in: ['PENDING', 'FAILED', 'EXPIRED'] }, total: providerAmount }, data: { status: 'REFUND_PENDING', paymentStatus: 'PAID' } })
       if (paymentChanged.count !== 1 || orderChanged.count !== 1) return 'changed'
       const reviewReason = !reservation ? 'inventory_reservation_unavailable' : attempt.order.checkoutQuote.partner.status !== 'ACTIVE' ? 'partner_suspended' : 'order_not_payable'
-      await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: 'payment.late_paid_manual_review', actor: 'rajaongkir', payload: { providerPaymentId: attempt.providerPaymentId, amount: providerAmount, reason: reviewReason } } })
+      const orderEvent = await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: 'payment.late_paid_manual_review', actor: 'rajaongkir', payload: { amount: providerAmount, reason: reviewReason } } })
+      await enqueuePartnerWebhook(transaction, { partnerId: attempt.order.checkoutQuote.partnerId, eventType: orderEvent.event, sourceEventId: orderEvent.id, payload: { orderId: attempt.orderId, orderNumber: attempt.order.orderNumber, status: 'REFUND_PENDING', paymentStatus: 'PAID', amount: providerAmount, reason: reviewReason } })
       return 'refund_pending'
     }
 
@@ -98,19 +100,24 @@ async function settlePaid(attemptId: string, providerAmount: number, paidAt: Dat
     }
     await transaction.ticketDelivery.create({ data: { orderId: attempt.orderId, email: attempt.order.email } })
     await transaction.inventoryReservation.update({ where: { id: reservation.id }, data: { status: 'CONSUMED' } })
-    await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: 'payment.verified', actor: 'rajaongkir', payload: { providerPaymentId: attempt.providerPaymentId, amount: providerAmount } } })
-    await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: 'tickets.issued', actor: 'system', payload: { count: await transaction.ticket.count({ where: { orderId: attempt.orderId } }) } } })
+    const paymentEvent = await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: 'payment.verified', actor: 'rajaongkir', payload: { amount: providerAmount } } })
+    await enqueuePartnerWebhook(transaction, { partnerId: attempt.order.checkoutQuote.partnerId, eventType: paymentEvent.event, sourceEventId: paymentEvent.id, payload: { orderId: attempt.orderId, orderNumber: attempt.order.orderNumber, status: 'PAID', paymentStatus: 'PAID', amount: providerAmount } })
+    const ticketCount = await transaction.ticket.count({ where: { orderId: attempt.orderId } })
+    const ticketsEvent = await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: 'tickets.issued', actor: 'system', payload: { count: ticketCount } } })
+    await enqueuePartnerWebhook(transaction, { partnerId: attempt.order.checkoutQuote.partnerId, eventType: ticketsEvent.event, sourceEventId: ticketsEvent.id, payload: { orderId: attempt.orderId, orderNumber: attempt.order.orderNumber, count: ticketCount } })
     return 'paid'
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }
 
 async function settleClosed(attemptId: string, amount: number, status: 'expired' | 'cancelled') {
   await prisma.$transaction(async transaction => {
-    const attempt = await transaction.paymentAttempt.findUnique({ where: { id: attemptId }, include: { order: true } })
+    const attempt = await transaction.paymentAttempt.findUnique({ where: { id: attemptId }, include: { order: { include: { checkoutQuote: { select: { partnerId: true } } } } } })
     if (!attempt || attempt.status !== 'PENDING' || attempt.amount !== amount) return
     await transaction.paymentAttempt.update({ where: { id: attempt.id }, data: { status: status === 'expired' ? 'EXPIRED' : 'FAILED', providerStatus: status, verifiedAt: new Date() } })
     await transaction.order.updateMany({ where: { id: attempt.orderId, status: 'PENDING', paymentStatus: 'PENDING' }, data: { status: 'CANCELLED', paymentStatus: status === 'expired' ? 'EXPIRED' : 'FAILED' } })
-    await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: `payment.${status}`, actor: 'rajaongkir', payload: { providerPaymentId: attempt.providerPaymentId } } })
+    const eventType = status === 'expired' ? 'payment.expired' : 'payment.cancelled'
+    const orderEvent = await transaction.orderEvent.create({ data: { orderId: attempt.orderId, event: eventType, actor: 'rajaongkir', payload: {} } })
+    await enqueuePartnerWebhook(transaction, { partnerId: attempt.order.checkoutQuote.partnerId, eventType, sourceEventId: orderEvent.id, payload: { orderId: attempt.orderId, orderNumber: attempt.order.orderNumber, status: 'CANCELLED', paymentStatus: status === 'expired' ? 'EXPIRED' : 'FAILED' } })
     await transaction.inventoryReservation.updateMany({ where: { quoteId: attempt.order.checkoutQuoteId, status: 'ACTIVE' }, data: { expiresAt: new Date(0) } })
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   await releaseExpiredReservations()

@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from './prisma.js'
+import { enqueuePartnerWebhook } from './partnerWebhooks.js'
 
 export async function releaseExpiredReservations(now = new Date()) {
   const expired = await prisma.inventoryReservation.findMany({
@@ -8,9 +9,10 @@ export async function releaseExpiredReservations(now = new Date()) {
       id: true,
       quote: {
         select: {
+          partnerId: true,
           order: {
             select: {
-              id: true, status: true, paymentStatus: true,
+              id: true, orderNumber: true, status: true, paymentStatus: true,
               paymentAttempts: { orderBy: { createdAt: 'desc' }, take: 1 },
             },
           },
@@ -45,7 +47,8 @@ export async function releaseExpiredReservations(now = new Date()) {
       await prisma.$transaction(async transaction => {
         await transaction.paymentAttempt.updateMany({ where: { id: attempt.id, status: 'PENDING', sessionCreatedAt: null }, data: { status: 'EXPIRED', providerStatus: 'session_unavailable', verifiedAt: now } })
         await transaction.order.updateMany({ where: { id: order.id, status: 'PENDING', paymentStatus: 'PENDING' }, data: { status: 'CANCELLED', paymentStatus: 'EXPIRED' } })
-        await transaction.orderEvent.create({ data: { orderId: order.id, event: 'checkout.reservation_expired', actor: 'system', payload: { reservationId: candidate.id } } })
+        const orderEvent = await transaction.orderEvent.create({ data: { orderId: order.id, event: 'checkout.reservation_expired', actor: 'system', payload: { reservationId: candidate.id } } })
+        await enqueuePartnerWebhook(transaction, { partnerId: candidate.quote.partnerId, eventType: orderEvent.event, sourceEventId: orderEvent.id, payload: { orderId: order.id, orderNumber: order.orderNumber, status: 'CANCELLED', paymentStatus: 'EXPIRED' } })
       })
     }
     const didRelease = await prisma.$transaction(async transaction => {

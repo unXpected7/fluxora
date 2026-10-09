@@ -1,6 +1,6 @@
 # Fluxora e-ticketing backend implementation plan
 
-**Status:** In progress — deployment readiness; provider-account and infrastructure rollout pending  
+**Status:** In progress — vm01 dev/prod databases provisioned; dev API deployed privately and healthy with QRIS disabled; DNS/TLS and provider-account rollout pending
 **Scope:** Build the backend under `backend/` for concert ticket sales, multiple ticket types, bundles, QRIS checkout, and admission validation. Use Nilam as the architectural reference, while keeping Fluxora's deployment hostnames and event-specific domain model.
 
 ### Progress
@@ -11,9 +11,12 @@
 - [x] RajaOngkir QRISLY adapter, authenticated status reconciliation, verified settlement, and QR ticket issuance; sandbox merchant validation remains pending.
 - [x] Dev/prod API Compose services, API gateway vhost files, health checks, and environment-specific secret wiring staged in the repository.
 - [x] Backend build and Prisma schema checks added to both branch workflows; API deployment remains manual and separate from frontend deployment.
+- [x] Add and run unit coverage for ticket QR signing/tamper rejection, webhook SSRF URL validation, and RajaOngkir QR session amount/config parsing (4 passing); backend/frontend builds and type-checks pass. Full provider sandbox and DB-backed tenant scenarios remain open.
 - [x] Migration-only Compose tasks and database backup, rollout, and rollback instructions documented. Automated backup scheduling and off-VM retention remain infrastructure work.
 - [x] Nilam-style staff sessions, separate gate/admin roles, staff provisioning, rate-limited atomic check-in, scan audit, admin catalogue management, and a retried ticket-email outbox.
-- [ ] Provision dev/prod databases; install DNS/TLS/API vhosts; configure provider and email credentials; apply migrations and deploy the dev API.
+- [x] Provision isolated PostgreSQL 16 dev/prod databases on vm01 using ports 5438/5439, separate persistent volumes, and private credential storage.
+- [x] Apply all 10 Prisma migrations to the fresh dev database and deploy the dev API on vm01 at `10.10.0.2:5102`; `/healthz`, `/readyz`, and Prisma migration status verified. QRIS remains disabled.
+- [ ] Install DNS/TLS/API vhosts and configure provider and email credentials.
 - [ ] Complete RajaOngkir/Brevo sandbox walkthrough and operational approval before production enablement. Automated provider refunds remain unimplemented pending a confirmed provider/policy contract; late-paid manual review is implemented.
 
 ## 1. Goal
@@ -152,9 +155,15 @@ Finalize API names and the order lookup access model during implementation. Do n
 
 ### Phase A — Decisions and provider verification
 
-- [ ] Confirm API domain names, DNS/TLS, deployment ownership, and separate dev/prod database provisioning.
-- [ ] Configure a RajaOngkir sandbox merchant QRIS, obtain dev API credentials, confirm QRIS ID/history ID formats against actual responses, and register the dev HTTPS callback. Public endpoint/authentication/payload references are recorded above; no secrets belong in the repo.
-- [ ] Decide assigned seating (current implementation is general admission), cancellation/refund policy, attendee details, ticket transfer, and offline check-in needs. Bundle composition is fixed ticket-type quantities; bundles issue an independent QR for each admission.
+- [x] Provision separate Fluxora dev/prod PostgreSQL databases and credentials on vm01; dev binds to `192.168.100.35:5438`, prod to `127.0.0.1:5439`.
+- [ ] Confirm API hostname ownership and final mapping for dev and production.
+- [ ] Create DNS records and TLS certificates for the approved API hosts; verify HTTPS renewal and reverse-proxy forwarding headers.
+- [ ] Configure API vhosts to proxy to the dev/prod API ports and set frontend origins/CORS to the approved storefront hosts.
+- [ ] Obtain and store RajaOngkir sandbox API credentials and merchant QRIS ID in the dev secret store; keep dev payment provider disabled until callback validation is ready.
+- [ ] Generate a sandbox QR and record actual QRIS ID, history ID, amount, currency, expiry, and status response formats against the adapter contract.
+- [ ] Register the dev HTTPS callback with RajaOngkir, inspect callback authentication/signature support, and confirm server-side status reconciliation handles duplicate and out-of-order events.
+- [ ] Decide whether assigned seating is needed (current model is general admission) and whether offline check-in is a launch requirement.
+- [ ] Decide cancellation/refund rules, required attendee details, ticket transfer policy, and bundle composition/discount rules before freezing customer workflows.
 - [x] Tickets are issued only after confirmed payment settlement.
 
 ### Phase B — Backend and schema foundation
@@ -173,18 +182,25 @@ Finalize API names and the order lookup access model during implementation. Do n
 
 - [x] Implement RajaOngkir QRISLY session creation, QR display data, status reconciliation, idempotent settlement, expiry/failure handling, inventory commit, and QR ticket issuance.
 - [x] Reconcile later callbacks and customer status polls for closed payments; a subsequently confirmed payment without a live hold moves to manual refund review and issues no ticket.
-- [ ] Run a real RajaOngkir sandbox purchase and resolve identifier-format differences before enabling dev sales.
+- [ ] Complete a sandbox purchase and reconcile the exact order amount, generated QR, provider history ID, and status lookup.
+- [ ] Exercise successful, expired, duplicate, late, wrong-amount, and out-of-order callback/status cases before enabling dev sales.
 - [x] Issue tickets transactionally after verified settlement; private order retrieval and queued Brevo ticket-email delivery are implemented.
 - [x] Route a provider-confirmed late payment with no live inventory hold to `REFUND_PENDING`; it never issues tickets. Admins can review the case and record a provider refund reference after handling the refund externally.
-- [ ] Validate ticket email delivery with the Brevo dev sandbox account.
-- [ ] Keep production QRIS disabled until sandbox callbacks, amount validation, duplicate/out-of-order notifications, expiry, and production credentials have been reviewed.
+- [ ] Verify Brevo sender/domain, deliver a sandbox ticket message, inspect links/QR privacy, and confirm retry behavior.
+- [ ] Keep production QRIS disabled until sandbox callback authentication, amount validation, duplicates/out-of-order updates, expiry, merchant ownership, and production credentials pass review.
 
 ### Phase E — Gate operations and deployment
 
 - [x] Staff login/sessions, separate gate/admin roles, online atomic check-in, audited admin catalogue management, and staff provisioning are implemented.
 - [x] Add backend dev/prod Compose services, API Nginx vhost files, health checks, secret wiring, backend CI verification, migration-only tasks, and backup/rollback runbook.
-- [ ] Provision and schedule off-VM database backups; configure host-level alerts and retention.
-- [ ] Deploy to the dedicated dev API/database, complete the sandbox purchase-to-check-in walkthrough, then enable production only after provider and operational approval.
+- [x] Inspect vm01 backup scheduling read-only: no Fluxora backup directory or database backup cron job exists; only host telemetry is scheduled. Off-VM storage and retention details are still required before configuring backups.
+- [ ] Schedule encrypted dev/prod PostgreSQL backups and copy them off vm01 with separate environment paths and retention.
+- [ ] Perform a restore drill for each environment and document recovery time, restore commands, and backup age checks.
+- [ ] Configure host/container/database disk, health, backup-failure, and API-worker alerts with an assigned responder.
+- [x] Deploy the dev API against the dedicated dev database; verify health/readiness and migration status. QRIS remains disabled.
+- [ ] Walk through event setup, ticket/bundle purchase, QRIS confirmation, email delivery, and gate check-in in sandbox; record expected outcomes and operational steps.
+- [ ] Review payment reconciliation, late-paid refund review, email/webhook retries, incident contacts, and rollback actions with operators.
+- [ ] Enable production only after DNS/TLS, provider credentials and callbacks, backup restore, monitoring, security, and operational approvals pass.
 
 ## 11. Verification scenarios
 

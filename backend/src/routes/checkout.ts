@@ -6,6 +6,7 @@ import { PaymentSessionIndeterminateError } from '../lib/paymentErrors.js'
 import { prisma } from '../lib/prisma.js'
 import { assertTicketQrConfiguration, ticketQrToken } from '../lib/ticketQr.js'
 import { reconcileRajaOngkirPayment } from '../lib/paymentSettlement.js'
+import { enqueuePartnerWebhook } from '../lib/partnerWebhooks.js'
 
 export const checkoutRouter = Router()
 
@@ -249,9 +250,10 @@ checkoutRouter.post('/orders', limitOrders, async (request, response, next) => {
             unitPrice: item.unitPrice, quantity: item.quantity, admissionsPerUnit: item.admissionsPerUnit, bundleSnapshot: item.bundleSnapshot ?? Prisma.JsonNull,
           })) },
           paymentAttempts: { create: { provider: quote.paymentProvider, providerOrderId: number, amount: quote.total } },
-          events: { create: { event: 'checkout.order_created', actor: 'guest', payload: { quoteId: quote.id } } },
         },
       })
+      const orderEvent = await transaction.orderEvent.create({ data: { orderId: order.id, event: 'checkout.order_created', actor: 'guest', payload: { quoteId: quote.id } } })
+      await enqueuePartnerWebhook(transaction, { partnerId: quote.partnerId, eventType: 'checkout.order_created', sourceEventId: orderEvent.id, payload: { orderId: order.id, orderNumber: order.orderNumber, total: order.total, status: order.status, paymentStatus: order.paymentStatus } })
       const paymentExpiry = new Date(Date.now() + paymentLifetimeMs)
       await transaction.inventoryReservation.update({ where: { id: reservation.id }, data: { expiresAt: paymentExpiry } })
       await transaction.paymentAttempt.updateMany({ where: { orderId: order.id }, data: { expiresAt: paymentExpiry } })
