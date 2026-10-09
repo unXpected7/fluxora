@@ -11,3 +11,5 @@ npm run build
 ```
 
 The staff portals use the backend's HttpOnly session cookie and require the exact portal origins to be allowed by backend CORS. Current hostname proposals and their deployment state are tracked in [`../docs/api/subdomains.md`](../docs/api/subdomains.md) and [`../deploy/README.md`](../deploy/README.md). Domain publication and TLS setup remain a separate deployment step.
+
+The customer ticket catalogue is served at `e-ticket.fluxorastudio.id` and reuses the storefront at `/tickets` and `/event/:slug`. It lists events with available inventory and supports a one-event-per-order checkout. Quote access and pending order recovery are kept in the current browser tab's session storage; closing the tab clears that recovery state. Paid ticket QR codes are rendered locally from the private order response and their bearer values are not persisted to browser storage.

@@ -8,6 +8,7 @@ Fluxora's studio website is a static React/Vite site served by Nginx. The concer
 | Production | `prod` | `fluxorastudio.id`, `www.fluxorastudio.id` | `10.10.0.2:8094` |
 | Development ticketing portals | `main` | `dev-admin-eticket.fluxorastudio.id`, `dev-partner-eticket.fluxorastudio.id` | `10.10.0.2:8093` |
 | Production ticketing portals | `prod` | `admin-eticket.fluxorastudio.id`, `partner-eticket.fluxorastudio.id` | `10.10.0.2:8094` |
+| Production customer ticket storefront | `prod` | `e-ticket.fluxorastudio.id` | `10.10.0.2:8094` |
 | Development API | manual rollout | `dev-api-eticket.fluxorastudio.id` | `10.10.0.2:5102` |
 | Production API | manual rollout | `api-eticket.fluxorastudio.id` | `10.10.0.2:5103` |
 
@@ -23,6 +24,14 @@ docker compose -f deploy/vm01/app/docker-compose.yml up --build -d dev-frontend
 The current GitHub Actions workflows deploy the frontend on pushes after frontend verification. Pull requests and pushes also build the backend and validate its Prisma schema; they do not deploy the ticketing API. The isolated Fluxora dev/prod PostgreSQL containers have been provisioned on vm01; migrations and API deployment remain separate manual steps.
 
 The API Compose services join `postgres_default` and require the untracked vm01 environment file to define `FLUXORA_DEV_DATABASE_URL` and `FLUXORA_PROD_DATABASE_URL`. A dedicated PostgreSQL Compose stack is in `deploy/vm01/postgres/docker-compose.yml`: dev binds to `192.168.100.35:5438`, prod binds to `127.0.0.1:5439`, and each has an independent named volume on `postgres_default`. Keep its `.env` on vm01 only. Payment defaults to disabled in both environments; the RajaOngkir QRISLY adapter is implemented, but live payment must remain disabled until sandbox and merchant-account validation is complete.
+
+The API's `CLIENT_ORIGIN` list includes the customer e-ticket origin for public catalogue and checkout requests. `STAFF_CLIENT_ORIGIN` is a separate, narrower list for staff routes and excludes `e-ticket.fluxorastudio.id`; keep these lists distinct when adding frontend hosts.
+
+## Nginx Proxy Manager on vm01
+
+The Nginx Proxy Manager admin UI runs in Docker on vm01 and binds only to the WireGuard address `10.10.0.2:81`. The public VPS Nginx serves `manage-nginx.faizrasyid.my.id` over HTTPS and proxies the admin UI to vm01. This UI manages proxy hosts created inside Nginx Proxy Manager; it does not edit the existing public VPS Nginx configuration.
+
+Create `/home/vm01/nginx-proxy-manager/.env` with `INITIAL_ADMIN_EMAIL` and a unique `INITIAL_ADMIN_PASSWORD`, restrict it to the vm01 operator (`chmod 600`), copy `deploy/vm01/nginx-proxy-manager/docker-compose.yml` into that directory, and start it with `docker compose up -d`. The admin port is intentionally not published on vm01's public interface. Configure the matching public vhost from `deploy/nginx-public/manage-nginx.faizrasyid.my.id` on the VPS, issue its TLS certificate, then reload Nginx.
 
 ## Ticketing API release procedure
 
@@ -76,6 +85,7 @@ sudo certbot certonly --webroot -w /var/www/certbot -d dev-partner-eticket.fluxo
 sudo certbot certonly --webroot -w /var/www/certbot -d fluxorastudio.id -d www.fluxorastudio.id
 sudo certbot certonly --webroot -w /var/www/certbot -d admin-eticket.fluxorastudio.id
 sudo certbot certonly --webroot -w /var/www/certbot -d partner-eticket.fluxorastudio.id
+sudo certbot certonly --webroot -w /var/www/certbot -d e-ticket.fluxorastudio.id
 sudo certbot certonly --webroot -w /var/www/certbot -d dev-api-eticket.fluxorastudio.id
 sudo certbot certonly --webroot -w /var/www/certbot -d api-eticket.fluxorastudio.id
 ```
@@ -92,6 +102,7 @@ Public routing source files:
 - `deploy/nginx-public/fluxorastudio.id` → `10.10.0.2:8094`
 - `deploy/nginx-public/admin-eticket.fluxorastudio.id` → `10.10.0.2:8094`
 - `deploy/nginx-public/partner-eticket.fluxorastudio.id` → `10.10.0.2:8094`
+- `deploy/nginx-public/e-ticket.fluxorastudio.id` → `10.10.0.2:8094`
 - `deploy/nginx-public/dev-api-eticket.fluxorastudio.id` → `10.10.0.2:5102`
 - `deploy/nginx-public/api-eticket.fluxorastudio.id` → `10.10.0.2:5103`
 

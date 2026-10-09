@@ -32,7 +32,7 @@
 - [x] Add SuperAdmin partner detail view, existing-staff owner assignment, and partner-filtered audit search using the existing protected APIs; frontend production build succeeds.
 - [x] Add seven-day single-use staff invitations with hashed token storage, concurrent-safe create/resend/accept/revoke, first-account password setup, audited acceptance, and one-time manual delivery links; keep invitation tokens out of server request URLs. Invitation preview also explains that a PENDING partner must be activated before workspace access.
 - [ ] Verify both workspaces using provisioned SuperAdmin and partner accounts; a SuperAdmin session and partner accounts are not yet available in the fresh dev database.
-- [x] Apply all 10 Prisma migrations to the fresh vm01 dev database and deploy the dev API privately at `10.10.0.2:5102`; `/healthz`, `/readyz`, and migration status are healthy/current. QRIS remains disabled.
+- [x] Apply all 10 Prisma migrations to the fresh vm01 dev database and deploy the dev API privately at `10.10.0.2:5102`; `/healthz`, `/readyz`, and migration status are healthy/current. A restricted pre-migration dev dump is stored on vm01. QRIS remains disabled.
 - [x] Deploy the quota reporting revision to dev; health/readiness are healthy and the endpoint requires staff authentication (`401` without a session).
 - [x] Deploy the operational queue snapshot to dev; readiness is healthy and both SuperAdmin monitoring endpoints reject requests without staff authentication (`401`).
 - [x] Add and run backend unit tests for ticket QR signature/tamper checks, webhook SSRF target validation, and RajaOngkir QR session/amount/config validation (4 passing). Backend and frontend builds/type-checks and Prisma schema validation pass. The local `localhost:5439` database is unavailable, so database-backed tenant acceptance tests remain pending.
@@ -258,7 +258,8 @@ Take a restorable backup before each production migration. Do not run tenant bac
 - [x] Add a responsive single-event cart for multiple ticket types and fixed bundles; show bundle admission quantities, per-order limits, and server-calculated quote totals. Each cart is limited to one event and therefore one partner.
 - [x] Connect quote creation, inventory reservation, order creation with a stable per-quote idempotency key, initial order status, and payment-session request. Quote, sold-out, and unavailable-provider errors are shown; a pending order is never presented as paid.
 - [x] Add private-token order status refresh and payment-expiry display; status is retrieved from the backend and bearer credentials are kept out of URLs.
-- [ ] Add automatic polling, live expiry countdown/recovery, durable idempotency handling across reloads, and verified purchase walkthrough.
+- [x] Add automatic order-status polling while an order is pending and a live payment-expiry countdown; frontend production build succeeds.
+- [ ] Add secure checkout recovery across reloads without exposing buyer access tokens, then complete a verified purchase walkthrough.
 - [ ] Build private order access and a ticket wallet with no bearer QR in query strings, analytics, or public URLs; add a controlled resend/access recovery flow.
 - [ ] Complete keyboard/screen-reader checks, Indonesian/English copy, IDR formatting, email delivery, and a purchase-to-gate walkthrough.
 
@@ -288,7 +289,8 @@ Take a restorable backup before each production migration. Do not run tenant bac
 - [x] Inspect vm01 backup scheduling read-only: no Fluxora backup directory or database backup cron job exists; host telemetry is the only user cron entry. The off-VM target and retention policy are still needed before scheduling copies.
 - [ ] Configure API/worker/database/host alerts, define quota threshold review and responder, and document deployment rollback steps.
 - [ ] Reconcile the staged `*-eticket` dashboard/API hostnames with the requested `admin`, `partner`, `ticket`, and `api-ticket` domains; confirm DNS/TLS ownership and CORS origins.
-- [ ] Deploy and verify the dashboard/storefront/API dev surfaces with isolated credentials; production migration and API deployment remain pending.
+- [x] Deploy and verify the dev storefront/dashboard frontend at `10.10.0.2:8093` and API at `10.10.0.2:5102`; frontend responds `200`, API `/readyz` responds `200`, and unauthenticated SuperAdmin access responds `401`. API uses the isolated dev database and provider remains disabled.
+- [ ] Install and verify the approved public dashboard/storefront/API hostnames; production migration and API deployment remain pending.
 - [ ] Complete provider sandbox purchase, callback reconciliation, ticket email, late-payment refund-review, and end-to-end gate validation.
 - [ ] Complete cross-tenant security review, operational runbooks, incident/refund support training, and production readiness review.
 - [ ] Launch production domains and onboard the first external partner only after product, provider, security, backup, and operational gates pass.

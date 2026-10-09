@@ -24,6 +24,7 @@ services:
       NODE_ENV: production
       PORT: 4000
       CLIENT_ORIGIN: https://dev.fluxorastudio.id,https://dev-admin-eticket.fluxorastudio.id,https://dev-partner-eticket.fluxorastudio.id
+      STAFF_CLIENT_ORIGIN: https://dev.fluxorastudio.id,https://dev-admin-eticket.fluxorastudio.id,https://dev-partner-eticket.fluxorastudio.id
       DATABASE_URL: ${FLUXORA_DEV_DATABASE_URL:-}
       CHECKOUT_PAYMENT_PROVIDER: ${FLUXORA_DEV_CHECKOUT_PAYMENT_PROVIDER:-disabled}
       RAJAONGKIR_PAYMENT_API_KEY: ${FLUXORA_DEV_RAJAONGKIR_PAYMENT_API_KEY:-}
@@ -65,7 +66,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      CLIENT_ORIGIN: https://fluxorastudio.id,https://www.fluxorastudio.id,https://admin-eticket.fluxorastudio.id,https://partner-eticket.fluxorastudio.id
+      CLIENT_ORIGIN: https://fluxorastudio.id,https://www.fluxorastudio.id,https://e-ticket.fluxorastudio.id,https://admin-eticket.fluxorastudio.id,https://partner-eticket.fluxorastudio.id
+      STAFF_CLIENT_ORIGIN: https://fluxorastudio.id,https://www.fluxorastudio.id,https://admin-eticket.fluxorastudio.id,https://partner-eticket.fluxorastudio.id
       DATABASE_URL: ${FLUXORA_PROD_DATABASE_URL:-}
       CHECKOUT_PAYMENT_PROVIDER: ${FLUXORA_PROD_CHECKOUT_PAYMENT_PROVIDER:-disabled}
       RAJAONGKIR_PAYMENT_API_KEY: ${FLUXORA_PROD_RAJAONGKIR_PAYMENT_API_KEY:-}

@@ -8,6 +8,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
 type Staff = { id: string; email: string; role: string; platformRole: string; memberships: { partnerId: string; slug: string; name: string; status: string; role: string }[] };
 type PartnerItem = { id: string; slug: string; name: string; status: 'PENDING' | 'ACTIVE' | 'SUSPENDED'; contactEmail: string | null; eventCount: number; membershipCount: number };
@@ -25,13 +26,48 @@ type AuditItem = { id: string; action: string; entityType: string; entityId: str
 type StaffInvitationItem = { id: string; email: string; role: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null; createdAt: string };
 type StoreTicket = { id: string; name: string; description: string | null; price: number; available: number; perOrderLimit: number };
 type StoreBundle = { id: string; name: string; description: string | null; price: number; available: number; perOrderLimit: number; items: { quantity: number; ticketType: { name: string } }[] };
-type StoreEvent = { id: string; slug: string; title: string; summary: string | null; description?: string | null; coverImageUrl: string | null; venueName: string; venueAddress?: string | null; city: string; timezone: string; startsAt: string; endsAt: string; performances: { id: string; name: string; startsAt: string; endsAt: string; ticketTypes: StoreTicket[] }[]; bundles: StoreBundle[] };
+export type StoreEvent = { id: string; slug: string; title: string; summary: string | null; description?: string | null; coverImageUrl: string | null; venueName: string; venueAddress?: string | null; city: string; timezone: string; startsAt: string; endsAt: string; performances: { id: string; name: string; startsAt: string; endsAt: string; ticketTypes: StoreTicket[] }[]; bundles: StoreBundle[] };
+type CustomerQuote = { id: string; accessToken: string; total: number; expiresAt: string; items: { name: string; quantity: number; unitPrice: number; admissionsPerUnit: number }[] };
+type CustomerOrder = { id: string; orderNumber: string; status: string; paymentStatus: string; total: number; payment: { status: string; qrCodeUrl: string | null; qrCodeContent: string | null; expiresAt: string | null } | null; tickets?: { publicId: string; qrToken?: string; status: string; issuedAt: string }[]; ticketDelivery?: { status: string; sentAt: string | null } | null };
+type CustomerCheckoutRecovery = { savedAt: number; eventSlug: string; quote: CustomerQuote | null; orderIdempotencyKey: string; order: CustomerOrder | null; orderAccessToken: string };
+const CUSTOMER_CHECKOUT_RECOVERY_KEY = 'fluxora-ticket-checkout-v1';
+
+export function ticketingApiUrl(hostname: string, override?: string) {
+  if (override) return override;
+  if (!hostname.endsWith('.fluxorastudio.id')) return 'http://localhost:4000';
+  return hostname.startsWith('dev-') ? 'https://dev-api-eticket.fluxorastudio.id' : 'https://api-eticket.fluxorastudio.id';
+}
+
+export function isCustomerStorefrontRoute(hostname: string, pathname: string) {
+  return hostname === 'e-ticket.fluxorastudio.id' || hostname.startsWith('dev-e-ticket.') || hostname.includes('ticket-eticket') || hostname.startsWith('ticket.') || pathname === '/tickets' || pathname.startsWith('/event/');
+}
+
+function readCustomerCheckoutRecovery(): CustomerCheckoutRecovery | null {
+  try {
+    const raw = sessionStorage.getItem(CUSTOMER_CHECKOUT_RECOVERY_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as CustomerCheckoutRecovery;
+    if (!value.savedAt || typeof value.eventSlug !== 'string' || typeof value.orderIdempotencyKey !== 'string' || typeof value.orderAccessToken !== 'string') { sessionStorage.removeItem(CUSTOMER_CHECKOUT_RECOVERY_KEY); return null; }
+    return value;
+  } catch {
+    try { sessionStorage.removeItem(CUSTOMER_CHECKOUT_RECOVERY_KEY); } catch { /* Session storage can be disabled by the browser. */ }
+    return null;
+  }
+}
+
+function customerPaymentStatusMessage(status: string) {
+  if (status === 'PAID') return 'Payment confirmed. Your issued tickets are shown below.';
+  if (status === 'EXPIRED') return 'This payment expired. Refresh your ticket selection to check availability and start again.';
+  if (status === 'FAILED') return 'Payment was not completed. Refresh your ticket selection to try again.';
+  if (status === 'REFUND_PENDING') return 'Payment arrived after the ticket reservation ended. The order is under refund review; tickets have not been issued.';
+  return 'Payment is pending. Keep this page open or refresh the status to check for confirmation.';
+}
+
+export function safeCustomerOrder(order: CustomerOrder): CustomerOrder {
+  return { ...order, tickets: order.tickets?.map(ticket => ({ publicId: ticket.publicId, status: ticket.status, issuedAt: ticket.issuedAt })) };
+}
 const portalKind = window.location.hostname.includes('partner-eticket') || window.location.hostname.startsWith('partner.') ? 'partner' : 'admin';
-const backendUrl = import.meta.env.VITE_BACKEND_URL || (
-  window.location.hostname.endsWith('.fluxorastudio.id')
-    ? window.location.hostname.startsWith('dev-') ? 'https://dev-api-eticket.fluxorastudio.id' : 'https://api-eticket.fluxorastudio.id'
-    : 'http://localhost:4000'
-);
+const backendUrl = ticketingApiUrl(window.location.hostname, import.meta.env.VITE_BACKEND_URL);
 
 function dateTimeInputValue(value: string) {
   const date = new Date(value);
@@ -528,21 +564,63 @@ function StaffLogin() {
   );
 }
 
+export function CustomerEventCatalogue({ events, money, lowestPrice }: { events: StoreEvent[]; money: (amount: number) => string; lowestPrice: (event: StoreEvent) => number | null }) {
+  const [search, setSearch] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('soonest');
+  const cities = [...new Set(events.map(event => event.city).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const now = Date.now();
+  const shownEvents = events.filter(event => {
+    const withinDate = dateFilter === 'all' || new Date(event.startsAt).getTime() <= now + Number(dateFilter) * 24 * 60 * 60 * 1000;
+    return withinDate && (!cityFilter || event.city === cityFilter) && `${event.title} ${event.city} ${event.venueName}`.toLowerCase().includes(search.trim().toLowerCase());
+  }).sort((a, b) => sortOrder === 'price'
+    ? (lowestPrice(a) ?? Number.MAX_SAFE_INTEGER) - (lowestPrice(b) ?? Number.MAX_SAFE_INTEGER)
+    : sortOrder === 'name' ? a.title.localeCompare(b.title) : new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+  return <>
+    <p>Discover upcoming live events and book tickets directly with Fluxora Tickets.</p>
+    <div className="ticket-catalogue-controls">
+      <label>Search events<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Artist, event, venue, or city" /></label>
+      <label>City<select value={cityFilter} onChange={event => setCityFilter(event.target.value)}><option value="">All cities</option>{cities.map(city => <option key={city} value={city}>{city}</option>)}</select></label>
+      <label>Date<select value={dateFilter} onChange={event => setDateFilter(event.target.value)}><option value="all">Any upcoming date</option><option value="30">Next 30 days</option><option value="90">Next 90 days</option></select></label>
+      <label>Sort by<select value={sortOrder} onChange={event => setSortOrder(event.target.value)}><option value="soonest">Soonest</option><option value="price">Lowest price</option><option value="name">Event name</option></select></label>
+    </div>
+    <section className="ticket-event-grid" aria-label="Available events">
+      {shownEvents.map(event => <a className="ticket-event-card" href={`/event/${encodeURIComponent(event.slug)}`} key={event.id}>
+        {event.coverImageUrl ? <img src={event.coverImageUrl} alt={`${event.title} event artwork`} loading="lazy" /> : <div className="ticket-event-card-image-fallback" aria-hidden="true"><span>{event.title}</span></div>}
+        <div><p className="eyebrow">{event.city}</p><h2>{event.title}</h2>
+          <p>{event.venueName} · {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeZone: event.timezone }).format(new Date(event.startsAt))}{event.endsAt !== event.startsAt ? ` – ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeZone: event.timezone }).format(new Date(event.endsAt))}` : ''}</p>
+          <span>{event.performances.reduce((count, performance) => count + performance.ticketTypes.length, 0)} ticket types · {event.bundles.length} bundles</span>
+          {lowestPrice(event) !== null && <strong className="ticket-starting-price">From {money(lowestPrice(event)!)}</strong>}
+          <span className="ticket-card-action">View tickets →</span>
+        </div>
+      </a>)}
+      {shownEvents.length === 0 && <p>{events.length ? 'No events match those filters.' : 'No events are on sale right now. Please check back soon.'}</p>}
+    </section>
+  </>;
+}
+
 function TicketStorefront() {
-  const eventSlug = window.location.pathname.startsWith('/event/') ? decodeURIComponent(window.location.pathname.slice('/event/'.length)) : '';
+  const routeEventSlug = window.location.pathname.startsWith('/event/') ? decodeURIComponent(window.location.pathname.slice('/event/'.length)) : '';
+  const storedRecovery = readCustomerCheckoutRecovery();
+  const recovery = !routeEventSlug || storedRecovery?.eventSlug === routeEventSlug ? storedRecovery : null;
+  const eventSlug = routeEventSlug || (recovery?.quote || recovery?.order ? recovery.eventSlug : '');
   const [events, setEvents] = useState<StoreEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<StoreEvent | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [form, setForm] = useState({ email: '', firstName: '', lastName: '', phone: '' });
-  const [quote, setQuote] = useState<{ id: string; accessToken: string; total: number; expiresAt: string; items: { name: string; quantity: number; unitPrice: number; admissionsPerUnit: number }[] } | null>(null);
-  const [orderIdempotencyKey, setOrderIdempotencyKey] = useState('');
-  const [order, setOrder] = useState<{ id: string; orderNumber: string; status: string; paymentStatus: string; total: number; payment: { status: string; qrCodeUrl: string | null; qrCodeContent: string | null; expiresAt: string | null } | null } | null>(null);
-  const [orderAccessToken, setOrderAccessToken] = useState('');
+  const [quote, setQuote] = useState<CustomerQuote | null>(() => recovery?.quote ?? null);
+  const [orderIdempotencyKey, setOrderIdempotencyKey] = useState(() => recovery?.orderIdempotencyKey ?? '');
+  const [order, setOrder] = useState<CustomerOrder | null>(() => recovery?.order ?? null);
+  const [orderAccessToken, setOrderAccessToken] = useState(() => recovery?.orderAccessToken ?? '');
+  const [countdownNow, setCountdownNow] = useState(Date.now());
+  const [catalogueRetry, setCatalogueRetry] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const api = import.meta.env.VITE_BACKEND_URL || (window.location.hostname.endsWith('.fluxorastudio.id') ? window.location.hostname.startsWith('dev-') ? 'https://dev-api-eticket.fluxorastudio.id' : 'https://api-eticket.fluxorastudio.id' : 'http://localhost:4000');
+  const api = backendUrl;
   const money = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount);
   const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const response = await fetch(`${api}${path}`, { ...init, headers: { ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers } });
@@ -550,16 +628,71 @@ function TicketStorefront() {
     if (!response.ok) throw new Error(data?.message || `Request failed (${response.status})`);
     return data as T;
   };
+
+  useEffect(() => {
+    try {
+      if (!quote && !order) { sessionStorage.removeItem(CUSTOMER_CHECKOUT_RECOVERY_KEY); return; }
+      sessionStorage.setItem(CUSTOMER_CHECKOUT_RECOVERY_KEY, JSON.stringify({ savedAt: Date.now(), eventSlug, quote, orderIdempotencyKey, order: order ? safeCustomerOrder(order) : null, orderAccessToken } satisfies CustomerCheckoutRecovery));
+    } catch { /* Checkout still works if the browser blocks session storage. */ }
+  }, [eventSlug, quote, orderIdempotencyKey, order, orderAccessToken]);
+
   useEffect(() => {
     setLoading(true); setError('');
-    const load = eventSlug ? request<StoreEvent>(`/api/events/${encodeURIComponent(eventSlug)}`).then(event => setSelectedEvent(event)) : request<{ items: StoreEvent[] }>('/api/events').then(result => setEvents(result.items));
+    const load = eventSlug
+      ? request<StoreEvent>(`/api/events/${encodeURIComponent(eventSlug)}`).then(setSelectedEvent)
+      : request<{ items: StoreEvent[] }>('/api/events').then(result => setEvents(result.items.filter(event => event.performances.some(performance => performance.ticketTypes.some(ticket => ticket.available > 0)) || event.bundles.some(bundle => bundle.available > 0))));
     void load.catch(cause => setError(cause instanceof Error ? cause.message : 'Could not load events.')).finally(() => setLoading(false));
+  }, [eventSlug, catalogueRetry]);
+
+  useEffect(() => {
+    document.title = selectedEvent ? `${selectedEvent.title} tickets | Fluxora Tickets` : 'Concert tickets | Fluxora Tickets';
+    return () => { document.title = 'Fluxora Studio'; };
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (!meta) { meta = document.createElement('meta'); meta.name = 'description'; document.head.append(meta); }
+    meta.content = selectedEvent
+      ? selectedEvent.summary || `${selectedEvent.title} tickets at ${selectedEvent.venueName}, ${selectedEvent.city}.`
+      : 'Browse upcoming concerts, compare tickets and bundles, and book with Fluxora Tickets.';
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]') ?? document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'canonical' }));
+    canonical.href = new URL(eventSlug ? `/event/${encodeURIComponent(eventSlug)}` : window.location.pathname, 'https://e-ticket.fluxorastudio.id').toString();
   }, [eventSlug]);
 
+  useEffect(() => {
+    if (!order || !orderAccessToken || order.paymentStatus !== 'PENDING') return;
+    const interval = window.setInterval(() => {
+      void request<CustomerOrder>(`/api/checkout/orders/${encodeURIComponent(order.id)}`, { headers: { Authorization: `Bearer ${orderAccessToken}` } })
+        .then(setOrder)
+        .catch(() => setNotice('Payment status refresh is temporarily unavailable.'));
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [api, order?.id, order?.paymentStatus, orderAccessToken]);
+
+  useEffect(() => {
+    if (!order || !orderAccessToken || order.paymentStatus !== 'PAID' || order.tickets?.every(ticket => ticket.qrToken)) return;
+    void request<CustomerOrder>(`/api/checkout/orders/${encodeURIComponent(order.id)}`, { headers: { Authorization: `Bearer ${orderAccessToken}` } })
+      .then(setOrder)
+      .catch(() => setNotice('Ticket details are temporarily unavailable. Refresh the order to try again.'));
+  }, [api, order?.id, order?.paymentStatus, order?.tickets, orderAccessToken]);
+
+  useEffect(() => {
+    if (!order?.payment?.expiresAt || order.paymentStatus !== 'PENDING') return;
+    const interval = window.setInterval(() => setCountdownNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [order?.payment?.expiresAt, order?.paymentStatus]);
+
   const selections = selectedEvent ? [
-    ...selectedEvent.performances.flatMap(performance => performance.ticketTypes.map(ticket => ({ key: `ticket:${ticket.id}`, type: 'ticket' as const, id: ticket.id, name: `${performance.name} · ${ticket.name}`, price: ticket.price, available: ticket.available, limit: ticket.perOrderLimit }))),
-    ...selectedEvent.bundles.map(bundle => ({ key: `bundle:${bundle.id}`, type: 'bundle' as const, id: bundle.id, name: bundle.name, price: bundle.price, available: bundle.available, limit: bundle.perOrderLimit })),
+    ...selectedEvent.performances.flatMap(performance => performance.ticketTypes.map(ticket => ({ key: `ticket:${ticket.id}`, type: 'ticket' as const, id: ticket.id, name: `${performance.name} · ${ticket.name}` }))),
+    ...selectedEvent.bundles.map(bundle => ({ key: `bundle:${bundle.id}`, type: 'bundle' as const, id: bundle.id, name: bundle.name })),
   ] : [];
+  const lowestPrice = (event: StoreEvent) => {
+    const prices = [...event.performances.flatMap(performance => performance.ticketTypes.filter(ticket => ticket.available > 0).map(ticket => ticket.price)), ...event.bundles.filter(bundle => bundle.available > 0).map(bundle => bundle.price)];
+    return prices.length ? Math.min(...prices) : null;
+  };
 
   async function makeQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!selectedEvent) return;
@@ -568,7 +701,7 @@ function TicketStorefront() {
     const bundles = selections.filter(item => item.type === 'bundle' && (quantities[item.key] ?? 0) > 0).map(item => ({ id: item.id, quantity: quantities[item.key] }));
     if (!tickets.length && !bundles.length) { setError('Choose at least one ticket or bundle.'); setSaving(false); return; }
     try {
-      const result = await request<NonNullable<typeof quote>>('/api/checkout/quotes', { method: 'POST', body: JSON.stringify({ ...form, tickets, bundles }) });
+      const result = await request<CustomerQuote>('/api/checkout/quotes', { method: 'POST', body: JSON.stringify({ ...form, tickets, bundles }) });
       setQuote(result); setOrderIdempotencyKey(crypto.randomUUID()); setNotice('Availability reserved for 15 minutes. Review the total and continue to create your order.');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not reserve the selected tickets.'); }
     finally { setSaving(false); }
@@ -578,16 +711,14 @@ function TicketStorefront() {
     if (!quote) return; setSaving(true); setError(''); setNotice('');
     try {
       const created = await request<{ id: string; orderNumber: string }>('/api/checkout/orders', { method: 'POST', headers: { 'Idempotency-Key': orderIdempotencyKey }, body: JSON.stringify({ quoteId: quote.id, accessToken: quote.accessToken }) });
-      const saved = await request<{ id: string; orderNumber: string; status: string; paymentStatus: string; total: number; payment: NonNullable<typeof order>['payment'] }>(`/api/checkout/orders/${encodeURIComponent(created.id)}`, { headers: { Authorization: `Bearer ${quote.accessToken}` } });
-      setOrder(saved);
       setOrderAccessToken(quote.accessToken);
+      const saved = await request<CustomerOrder>(`/api/checkout/orders/${encodeURIComponent(created.id)}`, { headers: { Authorization: `Bearer ${quote.accessToken}` } });
+      setOrder(saved);
       try {
         await request(`/api/checkout/orders/${encodeURIComponent(created.id)}/payment`, { method: 'POST', headers: { Authorization: `Bearer ${quote.accessToken}` } });
-        const refreshed = await request<typeof saved>(`/api/checkout/orders/${encodeURIComponent(created.id)}`, { headers: { Authorization: `Bearer ${quote.accessToken}` } });
+        const refreshed = await request<CustomerOrder>(`/api/checkout/orders/${encodeURIComponent(created.id)}`, { headers: { Authorization: `Bearer ${quote.accessToken}` } });
         setOrder(refreshed);
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'QRIS payment is unavailable.');
-      }
+      } catch (cause) { setError(cause instanceof Error ? cause.message : 'QRIS payment is unavailable.'); }
       setQuote(null);
       setNotice(`Order ${created.orderNumber} created. Payment status: ${saved.paymentStatus}.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not create the order.'); }
@@ -598,15 +729,44 @@ function TicketStorefront() {
     if (!order || !orderAccessToken) return;
     setSaving(true); setError('');
     try {
-      const refreshed = await request<typeof order>(`/api/checkout/orders/${encodeURIComponent(order.id)}`, { headers: { Authorization: `Bearer ${orderAccessToken}` } });
+      const refreshed = await request<CustomerOrder>(`/api/checkout/orders/${encodeURIComponent(order.id)}`, { headers: { Authorization: `Bearer ${orderAccessToken}` } });
       setOrder(refreshed); setNotice(`Order status: ${refreshed.paymentStatus}.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not refresh order status.'); }
     finally { setSaving(false); }
   }
 
-  return <main className="ticket-storefront"><header className="ticket-store-header"><a className="staff-login-brand" href="/" aria-label="Fluxora tickets home"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span className="brand-name">fluxora<span>tickets</span></span></a><span>Concert tickets</span></header><div className="ticket-store-content"><p className="eyebrow"><span /> FLUXORA TICKETING</p><h1>{selectedEvent?.title ?? 'Find your next concert'}</h1>{error && <p className="portal-alert" role="alert">{error}</p>}{notice && <p className="portal-notice" role="status">{notice}</p>}{loading ? <p className="portal-muted">Loading events…</p> : selectedEvent ? <>
-    <p className="ticket-event-meta">{selectedEvent.venueName} · {selectedEvent.city} · {new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeZone: selectedEvent.timezone }).format(new Date(selectedEvent.startsAt))}</p>{selectedEvent.coverImageUrl && <img className="ticket-event-cover" src={selectedEvent.coverImageUrl} alt="" />}{selectedEvent.description && <p>{selectedEvent.description}</p>}
-    {order ? <section className="ticket-checkout-card"><h2>Order {order.orderNumber}</h2><p>{order.status} · Payment {order.paymentStatus}</p><p>Total: <strong>{money(order.total)}</strong></p>{order.payment?.qrCodeUrl && <img src={order.payment.qrCodeUrl} alt="QRIS payment code" />}{order.payment?.qrCodeContent && <textarea readOnly aria-label="QRIS payment code content" value={order.payment.qrCodeContent} />}{order.payment?.expiresAt && <p>Payment expires {new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.payment.expiresAt))}.</p>}{order.paymentStatus === "PENDING" && <><p>Payment is pending. Keep this page open; order recovery after leaving is not available yet.</p><button className="button button-primary" type="button" disabled={saving} onClick={() => void refreshOrderStatus()}>{saving ? "Refreshing…" : "Refresh order status"}</button></>}</section> : quote ? <section className="ticket-checkout-card"><h2>Review your order</h2><ul>{quote.items.map((item, index) => <li key={`${item.name}-${index}`}>{item.quantity} × {item.name} · {money(item.unitPrice * item.quantity)} ({item.admissionsPerUnit * item.quantity} admissions)</li>)}</ul><p>Order total: <strong>{money(quote.total)}</strong></p><p>Quote expires {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(quote.expiresAt))}.</p><button className="button button-primary" type="button" disabled={saving} onClick={() => void createOrder()}>{saving ? 'Creating order…' : 'Create order and continue to payment'}</button></section> : <><section className="ticket-inventory-list"><h2>Available tickets and bundles</h2>{selectedEvent.performances.map(performance => <div key={performance.id}><h3>{performance.name} · {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: selectedEvent.timezone }).format(new Date(performance.startsAt))}</h3>{performance.ticketTypes.map(ticket => <label className="ticket-inventory-row" key={ticket.id}><span><strong>{ticket.name}</strong><small>{ticket.description || `${ticket.available} available · max ${ticket.perOrderLimit} per order`}</small></span><span>{money(ticket.price)}<input aria-label={`Quantity for ${ticket.name}`} type="number" min="0" max={Math.min(ticket.available, ticket.perOrderLimit)} value={quantities[`ticket:${ticket.id}`] ?? 0} onChange={event => setQuantities(current => ({ ...current, [`ticket:${ticket.id}`]: Number(event.target.value) }))} /></span></label>)}</div>)}{selectedEvent.bundles.map(bundle => <label className="ticket-inventory-row" key={bundle.id}><span><strong>{bundle.name} bundle</strong><small>{bundle.items.map(item => `${item.quantity} × ${item.ticketType.name}`).join(', ')} · {bundle.available} available</small></span><span>{money(bundle.price)}<input aria-label={`Quantity for ${bundle.name}`} type="number" min="0" max={Math.min(bundle.available, bundle.perOrderLimit)} value={quantities[`bundle:${bundle.id}`] ?? 0} onChange={event => setQuantities(current => ({ ...current, [`bundle:${bundle.id}`]: Number(event.target.value) }))} /></span></label>)}</section><form className="ticket-checkout-card" onSubmit={makeQuote}><h2>Contact details</h2><label>Email<input required type="email" value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} /></label><label>First name<input value={form.firstName} onChange={event => setForm(current => ({ ...current, firstName: event.target.value }))} /></label><label>Last name<input value={form.lastName} onChange={event => setForm(current => ({ ...current, lastName: event.target.value }))} /></label><label>Phone<input type="tel" value={form.phone} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} /></label><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Checking availability…' : 'Reserve tickets and get total'}</button></form></>}</> : <section className="ticket-event-grid">{events.map(event => <a className="ticket-event-card" href={`/event/${encodeURIComponent(event.slug)}`} key={event.id}>{event.coverImageUrl && <img src={event.coverImageUrl} alt="" />}<div><p className="eyebrow">{event.city}</p><h2>{event.title}</h2><p>{event.venueName} · {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeZone: event.timezone }).format(new Date(event.startsAt))}</p><span>{event.performances.reduce((count, performance) => count + performance.ticketTypes.length, 0)} ticket types · {event.bundles.length} bundles</span></div></a>)}{events.length === 0 && <p>No published concerts are available right now.</p>}</section>}</div></main>;
+  function startNewCustomerOrder() {
+    setOrder(null); setQuote(null); setOrderAccessToken(''); setOrderIdempotencyKey(''); setQuantities({}); setNotice(''); setError('');
+    try { sessionStorage.removeItem(CUSTOMER_CHECKOUT_RECOVERY_KEY); } catch { /* Ignore blocked browser storage. */ }
+  }
+
+  const secondsRemaining = order?.payment?.expiresAt ? Math.max(0, Math.ceil((new Date(order.payment.expiresAt).getTime() - countdownNow) / 1000)) : null;
+  return <main className="ticket-storefront">
+    <header className="ticket-store-header"><a className="staff-login-brand" href="/" aria-label="Fluxora tickets home"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span className="brand-name">fluxora<span>tickets</span></span></a><span>Concert tickets</span></header>
+    <div className="ticket-store-content"><p className="eyebrow"><span /> FLUXORA TICKETING</p><h1>{selectedEvent?.title ?? 'Find your next concert'}</h1>
+      {error && <p className="portal-alert" role="alert">{error} <button type="button" onClick={() => { setError(''); setCatalogueRetry(value => value + 1); }}>Try again</button></p>}
+      {notice && <p className="portal-notice" role="status">{notice}</p>}
+      {loading && <section className="ticket-event-grid ticket-event-grid-loading" aria-label="Loading events" aria-live="polite">{Array.from({ length: 4 }, (_, index) => <div className="ticket-event-skeleton" key={index}><span /><div><span /><span /><span /></div></div>)}</section>}
+      {!loading && selectedEvent && <section className="ticket-event-detail">
+        <p className="ticket-event-meta">{selectedEvent.venueName}{selectedEvent.venueAddress ? ` · ${selectedEvent.venueAddress}` : ''} · {selectedEvent.city} · {new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeZone: selectedEvent.timezone }).format(new Date(selectedEvent.startsAt))}{selectedEvent.endsAt !== selectedEvent.startsAt ? ` – ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeZone: selectedEvent.timezone }).format(new Date(selectedEvent.endsAt))}` : ''}</p>
+        {selectedEvent.coverImageUrl && <img className="ticket-event-cover" src={selectedEvent.coverImageUrl} alt={`${selectedEvent.title} event artwork`} />}{selectedEvent.description && <p>{selectedEvent.description}</p>}
+        {order && <section className="ticket-checkout-card"><h2>Order {order.orderNumber}</h2><p role="status">{customerPaymentStatusMessage(order.paymentStatus)}</p><p>Order status: {order.status} · Payment: {order.paymentStatus}</p><p>Total: <strong>{money(order.total)}</strong></p>
+          {order.paymentStatus === 'PAID' && <section aria-label="Issued tickets"><h3>Your tickets</h3>{order.tickets?.length ? <ul className="customer-ticket-list">{order.tickets.map(ticket => <li key={ticket.publicId}><strong>Ticket {ticket.publicId} · {ticket.status}</strong>{ticket.qrToken ? <QRCodeSVG value={ticket.qrToken} size={180} level="M" includeMargin title={`Entry QR code for ticket ${ticket.publicId}`} /> : <span>Loading secure ticket code…</span>}</li>)}</ul> : <p>Payment is confirmed. Ticket issuance is being finalized.</p>}<p>Ticket email: {order.ticketDelivery?.status ?? 'not available'}{order.ticketDelivery?.sentAt ? ` · sent ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.ticketDelivery.sentAt))}` : ''}</p></section>}
+          {order.payment?.qrCodeUrl && <img src={order.payment.qrCodeUrl} alt="QRIS payment code" />}{order.payment?.qrCodeContent && <textarea readOnly aria-label="QRIS payment code content" value={order.payment.qrCodeContent} />}{order.payment?.expiresAt && <p>Payment expires {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.payment.expiresAt))}.</p>}
+          {order.paymentStatus === 'PENDING' && <><p>Payment status refreshes automatically while this page is open. {secondsRemaining !== null ? `Time remaining: ${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, '0')}.` : ''}</p><button className="button button-primary" type="button" disabled={saving} onClick={() => void refreshOrderStatus()}>{saving ? 'Refreshing…' : 'Refresh order status'}</button></>}
+          {order.paymentStatus !== 'PENDING' && <button type="button" className="button" onClick={startNewCustomerOrder}>Start a new order</button>}
+        </section>}
+        {!order && quote && <section className="ticket-checkout-card"><h2>Review your order</h2><ul>{quote.items.map((item, index) => <li key={`${item.name}-${index}`}>{item.quantity} × {item.name} · {money(item.unitPrice * item.quantity)} ({item.admissionsPerUnit * item.quantity} admissions)</li>)}</ul><p>Order total: <strong>{money(quote.total)}</strong></p><p>Quote expires {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(quote.expiresAt))}.</p><button className="button button-primary" type="button" disabled={saving} onClick={() => void createOrder()}>{saving ? 'Creating order…' : 'Create order and continue to payment'}</button><button type="button" className="button" onClick={() => { setQuote(null); setOrderIdempotencyKey(''); setError(''); setNotice('Select your tickets again to refresh availability.'); }}>Refresh ticket selection</button></section>}
+        {!order && !quote && <>
+          <section className="ticket-inventory-list"><h2>Available tickets and bundles</h2>{selectedEvent.performances.map(performance => <div key={performance.id}><h3>{performance.name} · {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: selectedEvent.timezone }).format(new Date(performance.startsAt))}</h3>{performance.ticketTypes.map(ticket => <label className="ticket-inventory-row" key={ticket.id}><span><strong>{ticket.name}</strong><small>{ticket.description || `${ticket.available} available · max ${ticket.perOrderLimit} per order`}</small></span><span>{money(ticket.price)}<input aria-label={`Quantity for ${ticket.name}`} type="number" min="0" max={Math.min(ticket.available, ticket.perOrderLimit)} value={quantities[`ticket:${ticket.id}`] ?? 0} onChange={event => setQuantities(current => ({ ...current, [`ticket:${ticket.id}`]: Number(event.target.value) }))} /></span></label>)}</div>)}
+            {selectedEvent.bundles.map(bundle => <label className="ticket-inventory-row" key={bundle.id}><span><strong>{bundle.name} bundle</strong><small>{bundle.items.map(item => `${item.quantity} × ${item.ticketType.name}`).join(', ')} · {bundle.available} available</small></span><span>{money(bundle.price)}<input aria-label={`Quantity for ${bundle.name}`} type="number" min="0" max={Math.min(bundle.available, bundle.perOrderLimit)} value={quantities[`bundle:${bundle.id}`] ?? 0} onChange={event => setQuantities(current => ({ ...current, [`bundle:${bundle.id}`]: Number(event.target.value) }))} /></span></label>)}
+          </section>
+          <form className="ticket-checkout-card" onSubmit={makeQuote}><h2>Contact details</h2><p>After confirmed payment, ticket details appear here. Email delivery status is shown on the order and may be pending.</p><label>Email<input required type="email" value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} /></label><label>First name<input value={form.firstName} onChange={event => setForm(current => ({ ...current, firstName: event.target.value }))} /></label><label>Last name<input value={form.lastName} onChange={event => setForm(current => ({ ...current, lastName: event.target.value }))} /></label><label>Phone<input type="tel" value={form.phone} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} /></label><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Checking availability…' : 'Reserve tickets and get total'}</button></form>
+        </>}
+      </section>}
+      {!loading && !selectedEvent && <CustomerEventCatalogue events={events} money={money} lowestPrice={lowestPrice} />}
+    </div>
+  </main>;
 }
 
 function StaffInvitationAcceptance() {
@@ -788,7 +948,7 @@ function App() {
   const isStaffHost = hostname.includes('admin-eticket') || hostname.includes('partner-eticket') || hostname.startsWith('admin.') || hostname.startsWith('partner.');
   if (window.location.pathname === '/staff/invite') return <StaffInvitationAcceptance />;
   if (isStaffHost || window.location.pathname === '/staff/login' || window.location.pathname === '/admin' || window.location.pathname === '/partner') return <StaffLogin />;
-  if (hostname.includes('ticket-eticket') || hostname.startsWith('ticket.') || window.location.pathname === '/tickets' || window.location.pathname.startsWith('/event/')) return <TicketStorefront />;
+  if (isCustomerStorefrontRoute(hostname, window.location.pathname)) return <TicketStorefront />;
   const currentLocale = locale();
   const t = translations[currentLocale];
   const isEnglish = currentLocale === 'en';

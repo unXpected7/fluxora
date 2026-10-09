@@ -6,7 +6,7 @@ function requiredPort(value: string | undefined) {
   return port
 }
 
-function clientOrigins(value: string | undefined) {
+function origins(value: string | undefined) {
   return (value || 'http://localhost:5173')
     .split(',')
     .map(origin => origin.trim())
@@ -16,6 +16,7 @@ function clientOrigins(value: string | undefined) {
 export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: requiredPort(process.env.PORT),
-  clientOrigins: clientOrigins(process.env.CLIENT_ORIGIN),
+  clientOrigins: origins(process.env.CLIENT_ORIGIN),
+  staffClientOrigins: origins(process.env.STAFF_CLIENT_ORIGIN),
   paymentProvider: process.env.CHECKOUT_PAYMENT_PROVIDER || 'disabled',
 }

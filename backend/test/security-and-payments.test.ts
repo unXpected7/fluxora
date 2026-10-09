@@ -4,6 +4,7 @@ import { afterEach, describe, it } from 'node:test'
 import { RajaOngkirQrislyProvider } from '../src/lib/rajaongkir.js'
 import { validateWebhookUrl } from '../src/lib/partnerWebhooks.js'
 import { ticketQrToken, verifyTicketQrToken } from '../src/lib/ticketQr.js'
+import { isStaffOriginAllowed } from '../src/lib/staffOrigin.js'
 
 const originalFetch = globalThis.fetch
 const originalSecret = process.env.TICKET_QR_SIGNING_SECRET
@@ -15,6 +16,15 @@ afterEach(() => {
   else process.env.TICKET_QR_SIGNING_SECRET = originalSecret
   if (originalApiBase === undefined) delete process.env.RAJAONGKIR_API_BASE_URL
   else process.env.RAJAONGKIR_API_BASE_URL = originalApiBase
+})
+
+describe('staff origin allowlist', () => {
+  it('allows staff portal origins but rejects the customer storefront origin', () => {
+    const staffOrigins = ['https://admin-eticket.fluxorastudio.id', 'https://partner-eticket.fluxorastudio.id']
+    assert.equal(isStaffOriginAllowed('https://admin-eticket.fluxorastudio.id', staffOrigins), true)
+    assert.equal(isStaffOriginAllowed('https://e-ticket.fluxorastudio.id', staffOrigins), false)
+    assert.equal(isStaffOriginAllowed(undefined, staffOrigins), true)
+  })
 })
 
 describe('ticket QR signatures', () => {

@@ -4,13 +4,14 @@ import { currentStaff, createStaffSession, deleteStaffSession, clearStaffCookie,
 import { prisma } from '../lib/prisma.js'
 import { verifyTicketQrToken } from '../lib/ticketQr.js'
 import { config } from '../lib/config.js'
+import { isStaffOriginAllowed } from '../lib/staffOrigin.js'
 import { adminRouter } from './admin.js'
 
 export const staffRouter = Router()
 
 staffRouter.use((request, response, next) => {
   const origin = request.header('origin')
-  if (origin && !config.clientOrigins.includes(origin)) { response.status(403).json({ message: 'Origin is not allowed' }); return }
+  if (!isStaffOriginAllowed(origin, config.staffClientOrigins)) { response.status(403).json({ message: 'Origin is not allowed' }); return }
   next()
 })
 
