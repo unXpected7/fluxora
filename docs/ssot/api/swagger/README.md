@@ -4,7 +4,7 @@ These OpenAPI 3.1 JSON files document the backend routes implemented in `backend
 
 | File | Surface | Development host | Production host |
 |---|---|---|---|
-| [`client.json`](client.json) | Customer event catalogue and checkout | Customer portal host is not finalized in the PRD. Backend API: `dev-api-eticket.fluxorastudio.id` | Customer portal: `e-ticket.fluxorastudio.id`. Backend API: `api-eticket.fluxorastudio.id` |
+| [`client.json`](client.json) | Customer event catalogue and checkout | No dedicated customer dev vhost; shared frontend host `dev.fluxorastudio.id`. Backend API: `dev-api-eticket.fluxorastudio.id` | Customer portal: `e-ticket.fluxorastudio.id`. Backend API: `api-eticket.fluxorastudio.id` |
 | [`admin.json`](admin.json) | Staff authentication, platform administration, and partner-scoped staff operations | `dev-admin-eticket.fluxorastudio.id` | `admin-eticket.fluxorastudio.id` |
 | [`partner.json`](partner.json) | Partner API key integrations and partner workspace operations | `dev-partner-eticket.fluxorastudio.id` | `partner-eticket.fluxorastudio.id` |
 | [`ticketing.json`](ticketing.json) | Complete ticketing backend API, including customer, staff, partner, and payment callback routes | `dev-api-eticket.fluxorastudio.id` | `api-eticket.fluxorastudio.id` |
@@ -23,4 +23,4 @@ The customer, staff admin, and partner hostnames serve web portals, not separate
 - Errors generally return `{ "message": "..." }`; unexpected server errors also include `requestId`. Requests and responses propagate `x-request-id`.
 - Checkout prices are computed server-side. Quote creation reserves inventory; order creation requires an `Idempotency-Key`.
 - These specifications describe the implemented backend. They do not imply that production DNS, TLS, external payment callbacks, email delivery, or third-party integration have been verified.
-- The canonical host for partner integrations in older prose documents may differ; current deployment configuration uses `api-eticket.fluxorastudio.id`.
+- The configured partner API host is `api-eticket.fluxorastudio.id`; development uses `dev-api-eticket.fluxorastudio.id`.

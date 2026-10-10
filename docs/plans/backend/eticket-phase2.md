@@ -47,14 +47,14 @@ Fluxora will operate four distinct surfaces:
 
 | Surface | Hostname | Main users | Main responsibilities |
 |---|---|---|---|
-| Fluxora SuperAdmin | `admin.fluxorastudio.id` | Fluxora platform operators | Create/suspend partners, invite partner admins, configure platform-wide controls, inspect audit and platform health. |
-| Partner dashboard | `partner.fluxorastudio.id` | Event partners and their staff | Manage owned events, performances, ticket types, bundles, event staff, orders, and sales reports. |
-| Customer ticket storefront | `ticket.fluxorastudio.id` | Ticket buyers | Discover events, select tickets or bundles, pay by QRIS, access tickets, and present QR codes at the event. |
-| Partner/API integration | `api-ticket.fluxorastudio.id` | Partner systems and approved clients | Versioned, tenant-scoped API to publish/read event catalogues and create customer checkouts/orders. |
+| Fluxora SuperAdmin | `admin-eticket.fluxorastudio.id` (production); `dev-admin-eticket.fluxorastudio.id` (development) | Fluxora platform operators | Create/suspend partners, invite partner admins, configure platform-wide controls, inspect audit and platform health. |
+| Partner dashboard | `partner-eticket.fluxorastudio.id` (production); `dev-partner-eticket.fluxorastudio.id` (development) | Event partners and their staff | Manage owned events, performances, ticket types, bundles, event staff, orders, and sales reports. |
+| Customer ticket storefront | `e-ticket.fluxorastudio.id` (production); shared dev frontend at `dev.fluxorastudio.id` | Ticket buyers | Discover events, select tickets or bundles, pay by QRIS, access tickets, and present QR codes at the event. |
+| Partner/API integration | `api-eticket.fluxorastudio.id` (production); `dev-api-eticket.fluxorastudio.id` (development) | Partner systems and approved clients | Versioned, tenant-scoped API to publish/read event catalogues and create customer checkouts/orders. |
 
 The required relationship is **one partner → many events → many performances and ticket types**. A partner can define bundles for an event. A bundle has one displayed price and contains one or more ticket-type quantities; a paid bundle issues a separate redeemable ticket for each admission in its saved bundle composition.
 
-The Phase 1 backend models events, performances, ticket types, bundles, checkout, QRIS, tickets, gate scans, staff accounts, and event administration. Phase 2 has added partner ownership and scoped staff/API access while preserving existing order and ticket snapshots. The deployed development API still uses a staged `dev-api-eticket` hostname; the production API must align with the requested `api-ticket.fluxorastudio.id` after hostname ownership, DNS, and TLS are confirmed.
+The Phase 1 backend models events, performances, ticket types, bundles, checkout, QRIS, tickets, gate scans, staff accounts, and event administration. Phase 2 has added partner ownership and scoped staff/API access while preserving existing order and ticket snapshots. The committed Nginx configuration routes development through `dev-api-eticket.fluxorastudio.id` and production through `api-eticket.fluxorastudio.id`. DNS/TLS reachability remains to be verified.
 
 ## 2. Architecture and tenant boundaries
 
@@ -87,10 +87,10 @@ Keep the three browser applications separate at the routing/configuration level,
 
 ```text
 apps/
-  superadmin/     # admin.fluxorastudio.id
-  partner/        # partner.fluxorastudio.id
-  customer/       # ticket.fluxorastudio.id
-backend/          # API and workers; api-ticket.fluxorastudio.id
+  superadmin/     # admin-eticket.fluxorastudio.id
+  partner/        # partner-eticket.fluxorastudio.id
+  customer/       # e-ticket.fluxorastudio.id
+backend/          # API and workers; api-eticket.fluxorastudio.id
 ```
 
 Each dashboard calls the API over HTTPS with credentialed requests and a narrowly configured CORS allowlist. Staff session cookies remain HttpOnly, Secure in production, SameSite=Lax, and host-only to the API host; never broaden cookie scope to `.fluxorastudio.id` merely to share a session across dashboards. Verify browser CORS/CSRF behavior for the actual dashboard origins.
@@ -136,7 +136,7 @@ SuperAdmin must not use a normal partner membership to acquire global access. Re
 
 ## 6. Reusable API for other event organizers
 
-The `api-ticket.fluxorastudio.id` API lets an approved external event organizer use Fluxora's catalogue, checkout, QRIS, and ticket issuance instead of building those systems itself. A key is issued to one partner, carries limited scopes, can be rotated/revoked, and is rate-limited per partner and per key.
+The `api-eticket.fluxorastudio.id` API lets an approved external event organizer use Fluxora's catalogue, checkout, QRIS, and ticket issuance instead of building those systems itself. A key is issued to one partner, carries limited scopes, can be rotated/revoked, and is rate-limited per partner and per key.
 
 Proposed initial API surface:
 
@@ -211,7 +211,7 @@ Take a restorable backup before each production migration. Do not run tenant bac
 
 ### Phase 0 — Product and money-flow decisions
 
-- [ ] Confirm hostnames and ownership: DNS administrator, TLS/certificate automation, API proxy owner, dev/staging naming, and the `api-eticket` to `api-ticket` transition.
+- [ ] Verify hostnames and ownership against `deploy/nginx-public/`: DNS administrator, TLS/certificate automation, API proxy owner, and live development/production routing.
 - [ ] Confirm tenant operations: partner onboarding evidence, approval/activation steps, suspension reason and recovery, and who can assign a partner owner.
 - [ ] Confirm identity rules: whether staff can join multiple partners, role grants, event-scoped manager/gate assignments, invitations, password recovery, and SuperAdmin MFA.
 - [ ] Choose merchant of record and settlement owner; document QRIS account ownership, partner payout cadence, reconciliation source, and provider reporting.
@@ -267,7 +267,7 @@ Take a restorable backup before each production migration. Do not run tenant bac
 
 - [ ] Decide and publish the development API hostname; configure its DNS, TLS, reverse proxy, CORS origin, and API health monitoring.
 - [x] Document the `/api/v1` contract, limits, errors, idempotency, key lifecycle, and webhook receiver guidance in `docs/api/partner-v1.md`; correct docs to match implemented webhooks and usage reporting.
-- [ ] Publish the API contract on `api-ticket.fluxorastudio.id` after hostname ownership, DNS, and TLS are confirmed.
+- [ ] Verify public DNS/TLS and publish the API contract on the configured host `api-eticket.fluxorastudio.id`.
 - [ ] Exercise key creation, one-time display, scope denial, quota `429`, expiry, revocation, immediate rotation, and bounded overlap from a separate organizer client.
 - [ ] Exercise quote/order idempotency and partner isolation using valid, wrong-partner, expired, revoked, and insufficient-scope keys.
 - [ ] Validate webhook HMAC/timestamp verification, event deduplication, secret rotation, retry schedule, dead-letter visibility, and manual replay with a receiver.
@@ -313,7 +313,7 @@ Take a restorable backup before each production migration. Do not run tenant bac
 2. **Tenant/user model:** confirm whether one user may belong to multiple partners and whether event managers/gate staff can be assigned per event.
 3. **Public event URL:** choose global event slugs or partner-specific paths and determine whether partners need custom domains/branding.
 4. **MVP commerce rules:** confirm fees, partner commission, bundle discount semantics, attendee assignment, customer accounts, refunds, transfers, seating, and partial redemption.
-5. **Hostname/deployment ownership:** DNS/TLS for `admin`, `partner`, `ticket`, and `api-ticket`; decide migration/alias timing from Phase 1's proposed `api-eticket` hosts.
+5. **Hostname/deployment ownership:** Verify DNS/TLS for `admin-eticket`, `partner-eticket`, `e-ticket`, and `api-eticket` hosts defined in `deploy/nginx-public/`.
 6. **Provider readiness:** RajaOngkir merchant settlement and refund support, callback identifier behavior, and Brevo sender verification still need real-account validation.
 7. **Data migration:** confirm which Phase 1 seed/demo or real event data should belong to the initial Fluxora partner before tenant backfill.
 

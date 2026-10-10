@@ -8,8 +8,14 @@ Fluxora runs a static React/Vite studio site and a separate Express ticketing AP
 | --- | --- | --- | --- |
 | `dev.fluxorastudio.id` | Development studio frontend | `10.10.0.2:8093` | Deployed by the `main` workflow |
 | `fluxorastudio.id`, `www.fluxorastudio.id` | Production studio frontend | `10.10.0.2:8094` | Deployed by the `prod` workflow |
+| `dev-admin-eticket.fluxorastudio.id`, `dev-partner-eticket.fluxorastudio.id` | Development admin and partner portals | `10.10.0.2:8093` | Shared development frontend |
+| `e-ticket.fluxorastudio.id` | Production customer storefront | `10.10.0.2:8095` | Dedicated production frontend |
+| `admin-eticket.fluxorastudio.id` | Production admin portal | `10.10.0.2:8096` | Dedicated production frontend |
+| `partner-eticket.fluxorastudio.id` | Production partner portal | `10.10.0.2:8097` | Dedicated production frontend |
 | `dev-api-eticket.fluxorastudio.id` | Development ticketing API | `10.10.0.2:5102` | Manual rollout after database setup and migrations |
 | `api-eticket.fluxorastudio.id` | Production ticketing API | `10.10.0.2:5103` | Manual rollout after database setup and migrations |
+
+There is no dedicated customer e-ticket development virtual host in `deploy/nginx-public/`; `dev.fluxorastudio.id` is the configured development frontend host. The three development portal aliases route to that same frontend upstream. Production customer, admin, and partner portals use separate frontend upstreams. These mappings describe committed Nginx configuration, not verified DNS or live TLS state.
 
 The frontend containers serve the Vite build through Nginx. The ticketing API is a separate Express service with Prisma and isolated Fluxora development and production PostgreSQL databases. The API is not deployed by the frontend CI workflows.
 

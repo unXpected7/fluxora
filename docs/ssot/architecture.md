@@ -70,12 +70,12 @@ Known intended host groups include:
 | Surface | Development | Production |
 |---|---|---|
 | Studio | `dev.fluxorastudio.id` | `fluxorastudio.id`, `www.fluxorastudio.id` |
-| Customer tickets | Development customer host not finalized in PRD | `e-ticket.fluxorastudio.id` |
+| Customer tickets | No dedicated development customer host is configured; `dev.fluxorastudio.id` is the shared dev frontend | `e-ticket.fluxorastudio.id` |
 | Staff admin | `dev-admin-eticket.fluxorastudio.id` | `admin-eticket.fluxorastudio.id` |
 | Partner workspace | `dev-partner-eticket.fluxorastudio.id` | `partner-eticket.fluxorastudio.id` |
-| Ticketing API | `dev-api-eticket.fluxorastudio.id` | `api-eticket.fluxorastudio.id` in current deploy config |
+| Ticketing API | `dev-api-eticket.fluxorastudio.id` | `api-eticket.fluxorastudio.id` |
 
-`docs/api/partner-v1.md` also names `api-ticket.fluxorastudio.id` as the intended partner API base URL. The API hostname is therefore inconsistent in docs; confirm a canonical hostname and update DNS, gateway, CORS, frontend configuration, and partner docs together. A committed vhost is not evidence that DNS, TLS, or gateway configuration is live.
+The partner API contract uses `api-eticket.fluxorastudio.id`, matching `deploy/nginx-public/api-eticket.fluxorastudio.id`; development uses `dev-api-eticket.fluxorastudio.id`. The separate portal hosts map to frontend services as shown in `deploy/nginx-public/README.md`. Committed virtual hosts document intended routing and do not prove that DNS, TLS certificates, or the live gateway are operational.
 
 ## 6. CI/CD boundaries
 

@@ -189,7 +189,7 @@ The repository does not yet define operational targets or analytics baselines. T
 | INT-03 | Create, rotate, revoke, and expire API keys; reveal secrets once and store hashes. | `[DONE]` Implemented. |
 | INT-04 | Apply shared database-backed per-key request quotas and expose safe usage metrics to SuperAdmins. | `[DONE]` Fixed-window quotas and usage endpoint implemented. |
 | INT-05 | Send signed partner webhooks with stable delivery IDs, retries, and replay support. | `[DONE]` Implemented with encrypted endpoint secrets, HMAC signatures, SSRF protections, bounded retries, and admin replay. |
-| INT-06 | Publish and verify the partner integration hostname and validate a real external integration. | `[NOT DONE]` Docs contain differing proposed hostnames (`api-ticket` vs `api-eticket`); DNS/TLS publication and external integration are pending. Confirm canonical hostname before launch. |
+| INT-06 | Publish and verify the partner integration hostname and validate a real external integration. | `[NOT DONE]` The committed Nginx configuration uses `api-eticket.fluxorastudio.id` (development: `dev-api-eticket.fluxorastudio.id`). DNS/TLS reachability and a real external integration remain unverified. |
 | INT-07 | Expose partner settlement reports and cross-partner checkout. | `[NOT DONE]` Out of current v1 scope. |
 
 ### 5.6 Security, privacy, and accessibility
@@ -317,7 +317,7 @@ Launch is complete only when all of the following are true:
 5. **Recovery and operations:** Establish off-host backup retention and successful restore drills; define monitoring, alerts, incident responders, and recovery targets.
 6. **Refund policy:** Define who owns refunds, response times, customer communication, and whether provider-supported automation will be added.
 7. **Staff invitations:** Reconcile the implemented backend invitation lifecycle with the frontend documentation that still reports onboarding as unimplemented; finish UI and secure invitation delivery.
-8. **Hostnames:** Resolve the partner API hostname discrepancy between `api-ticket.fluxorastudio.id` and `api-eticket.fluxorastudio.id`; verify admin/partner host publication independently.
+8. **Hostnames:** Verify DNS/TLS and live gateway routing for the API hostnames in `deploy/nginx-public/`; verify admin/partner portal publication independently. The committed production API hostname is `api-eticket.fluxorastudio.id`.
 9. **Studio lead path:** Confirm the expected contact CTA/destination and whether lead submissions need CRM capture or measurement.
 10. **Policies:** Approve privacy notice, data retention, customer support and incident response ownership, and customer email preference/consent policy.
 11. **Operational targets:** Set availability, latency, payment reconciliation, email delivery, and recovery targets after expected event traffic is known.

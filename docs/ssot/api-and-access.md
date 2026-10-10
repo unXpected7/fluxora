@@ -113,7 +113,7 @@ Authorization must verify both role and resource ownership on every request. An 
 
 ## 7. Gaps and follow-up
 
-- `[NOT DONE]` Canonical production partner API hostname is unresolved (`api-ticket` in partner contract vs `api-eticket` in current deployment materials).
+- `[NOT DONE]` DNS/TLS reachability for the configured partner API host and a real external integration remain unverified. The canonical production API hostname in `deploy/nginx-public/` is `api-eticket.fluxorastudio.id` (development: `dev-api-eticket.fluxorastudio.id`).
 - `[NOT DONE]` Production API host and all staff portals need live DNS/TLS/gateway verification.
 - `[NOT DONE]` A real external API integration has not been recorded as verified.
 - `[NOT DONE]` Consent capture and organizer email campaign/reminder APIs do not exist; see [Email communications](email-communications.md).

@@ -3,7 +3,7 @@
   "info": {
     "title": "Fluxora Customer API",
     "version": "1.0.0",
-    "description": "API used by the customer ticket storefront. Customer portal hosts: https://e-ticket.fluxorastudio.id (production); development customer host is not finalized in the PRD. The API base URL is the ticketing API host. See /api/checkout for private checkout lifecycle."
+    "description": "API used by the customer ticket storefront. Customer portal: https://e-ticket.fluxorastudio.id in production. There is no dedicated customer development vhost; the configured shared development frontend is https://dev.fluxorastudio.id. The API base URL is the ticketing API host. See /api/checkout for private checkout lifecycle."
   },
   "servers": [
     {

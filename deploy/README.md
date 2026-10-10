@@ -77,7 +77,7 @@ Migrations are forward-only. For an application-only rollback, check out the rec
 
 ## Public gateway setup
 
-Create Cloudflare DNS records for the frontend, ticketing portal, and API hostnames in the table above, pointing to the public gateway. The current hostname requests are reaching the gateway's default PMeme Handal API vhost, so the Fluxora vhosts below must be enabled before the domains will serve this frontend.
+Create Cloudflare DNS records for the frontend, ticketing portal, and API hostnames in the table above, pointing to the public gateway. As of 2026-10-10, the development admin and partner hostnames have active public Nginx vhosts and origin certificates; both serve the vm01 development frontend at `10.10.0.2:8093`. Other hostnames must be checked and enabled independently. The GitHub Actions workflows deploy to vm01 only; they do not install gateway vhosts or issue certificates.
 
 For the first certificate issuance, install temporary HTTP-only vhosts for the frontend hostnames and the two API hostnames that serve `/.well-known/acme-challenge/` from `/var/www/certbot` (create that directory first). Keep Cloudflare proxying enabled only if HTTP challenge traffic is allowed through; otherwise temporarily set the records to DNS-only while issuing. Then run:
 

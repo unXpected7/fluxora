@@ -1,6 +1,6 @@
 # Fluxora Partner API v1
 
-Versioned HTTPS API for approved concert organizers. The intended production base URL is `https://api-ticket.fluxorastudio.id`; the development host and DNS/TLS publication are still pending deployment setup.
+Versioned HTTPS API for approved concert organizers. The production base URL in the current Nginx configuration is `https://api-eticket.fluxorastudio.id`; development uses `https://dev-api-eticket.fluxorastudio.id`. These API hosts proxy to the ticketing backend. The partner workspace portal is `https://partner-eticket.fluxorastudio.id` in production and `https://dev-partner-eticket.fluxorastudio.id` in development.
 
 ## Authentication and scopes
 
@@ -139,7 +139,7 @@ Retry quote creation only after deciding how to handle the previous quote's inve
 
 - API-key checkout currently uses the configured platform QRIS provider. Cross-partner checkout remains disabled.
 - Partner webhooks and API-key usage dashboards are implemented. Customer-account endpoints and partner settlement reports are not part of the current contract. Quotas are database-backed fixed windows, not sliding-window or burst controls.
-- The contract is documented in this repository; hosting the guide on `api-ticket.fluxorastudio.id` and validating a real external integration remain launch tasks.
+- The contract and API hostnames match the current Nginx configuration. DNS/TLS reachability and a real external integration remain to be verified; a committed Nginx virtual host alone does not prove those are live.
 
 ## Outbound partner webhooks
 
