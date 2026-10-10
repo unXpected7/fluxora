@@ -1,0 +1,613 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Fluxora Customer API",
+    "version": "1.0.0",
+    "description": "API used by the customer ticket storefront. Customer portal hosts: https://e-ticket.fluxorastudio.id (production); development customer host is not finalized in the PRD. The API base URL is the ticketing API host. See /api/checkout for private checkout lifecycle."
+  },
+  "servers": [
+    {
+      "url": "https://dev-api-eticket.fluxorastudio.id",
+      "description": "Development API (noindex deployment)"
+    },
+    {
+      "url": "https://api-eticket.fluxorastudio.id",
+      "description": "Production API hostname in current deployment configuration"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System"
+    },
+    {
+      "name": "Events"
+    },
+    {
+      "name": "Checkout"
+    },
+    {
+      "name": "Payments"
+    },
+    {
+      "name": "Staff auth"
+    },
+    {
+      "name": "Check-in"
+    },
+    {
+      "name": "Partner API"
+    },
+    {
+      "name": "Platform admin"
+    },
+    {
+      "name": "Partner admin"
+    },
+    {
+      "name": "Catalog"
+    },
+    {
+      "name": "Operations"
+    },
+    {
+      "name": "Access management"
+    },
+    {
+      "name": "Integrations"
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Check API liveness",
+        "description": "Returns process liveness.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": []
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Check API readiness",
+        "description": "Checks database connectivity; returns 503 when unavailable.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "List public events",
+        "description": "Lists published future events and public catalogue availability hints. Availability is advisory; request a quote to validate inventory.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/events/{slug}": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Get event details",
+        "description": "Returns a published event by slug, including performances, ticket types and bundles.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/checkout/quotes": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Create checkout quote",
+        "description": "Validates selection prices and sale windows and reserves inventory. Requires email and at least one ticket or bundle selection. Quote accessToken is a bearer secret.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "200": {
+            "description": "Successful response or idempotent replay"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/checkout/orders": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Create order from quote",
+        "description": "Creates an order from a valid quote. Supply Idempotency-Key and quote ID/access token; reuse the same key for retries.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "200": {
+            "description": "Successful response or idempotent replay"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "16–128 safe characters. Reuse the same value for retries of this attempt.",
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/api/checkout/orders/{id}": {
+      "get": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Get private order status",
+        "description": "Returns order, payment and ticket delivery state. Requires quote access token as Bearer credential. Treat response as sensitive.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "quoteToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/checkout/orders/{id}/payment": {
+      "post": {
+        "tags": [
+          "Checkout"
+        ],
+        "summary": "Create or replay QRIS payment session",
+        "description": "Creates or replays provider payment instructions. Requires quote access token. Provider status verification is authoritative.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "200": {
+            "description": "Successful response or idempotent replay"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "quoteToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "staffCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "fluxora_staff"
+      },
+      "partnerKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Fluxora partner API key",
+        "description": "Partner API key; scopes are described per operation."
+      },
+      "quoteToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Quote access token"
+      }
+    },
+    "schemas": {
+      "JsonObject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "QuoteRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Selection"
+            }
+          },
+          "bundles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Selection"
+            }
+          }
+        },
+        "description": "At least one ticket or bundle is required; prices are computed by server. Max 10 units per selection and 20 admissions per order."
+      },
+      "Selection": {
+        "type": "object",
+        "required": [
+          "id",
+          "quantity"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        }
+      },
+      "OrderRequest": {
+        "type": "object",
+        "required": [
+          "quoteId",
+          "accessToken"
+        ],
+        "properties": {
+          "quoteId": {
+            "type": "string"
+          },
+          "accessToken": {
+            "type": "string",
+            "writeOnly": true
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "CheckinRequest": {
+        "type": "object",
+        "required": [
+          "qrToken",
+          "eventId"
+        ],
+        "properties": {
+          "qrToken": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "gate": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentWebhook": {
+        "type": "object",
+        "required": [
+          "event",
+          "data"
+        ],
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "payment.success",
+              "payment.expired"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
