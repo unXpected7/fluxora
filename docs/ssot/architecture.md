@@ -10,9 +10,9 @@ Fluxora has a public Studio site and a ticketing product. They share one fronten
 | Product surface | Implementation | Purpose | Status |
 |---|---|---|---|
 | Studio website | `frontend/` React + Vite | Company profile and lead generation | `[DONE]` Code and frontend deployment paths exist. Confirm contact conversion path separately. |
-| Customer storefront | `frontend/` host/path-aware React app | Event discovery, event details, checkout and ticket display | `[DONE]` Code exists; `[NOT DONE]` latest production build is reported pending. |
-| Staff portals | Same frontend, host-aware | Platform administration and partner operations | `[DONE]` UI and API routes exist; verify each staff hostname's live routing. |
-| Ticketing API | `backend/` Express + Prisma | Catalogue, checkout, payment, staff, partner API and webhook handling | `[DONE]` API code exists; `[NOT DONE]` production API readiness/deployment remains pending in rollout notes. |
+| Customer storefront | `frontend/` host/path-aware React app | Event discovery, event details, checkout and ticket display | `[PARTIAL]` Production customer catalogue page and API readiness verified 2026-10-11; live payment and available inventory are not verified. |
+| Staff portals | Same frontend, host-aware | Platform administration and partner operations | `[PARTIAL]` Production admin and partner sign-in pages and HTTPS routing verified 2026-10-11; production authenticated journeys remain unverified. |
+| Ticketing API | `backend/` Express + Prisma | Catalogue, checkout, payment, staff, partner API and webhook handling | `[PARTIAL]` Dev/prod APIs are healthy and production catalogue/readiness routes respond; provider credentials and external integration are not verified. |
 | PostgreSQL | Separate dev/prod databases | Persistent ticketing, partner, staff and audit state | `[DONE]` Separate DBs were provisioned for dev/prod in the backend rollout notes; restore readiness remains pending. |
 
 ## 2. Runtime traffic flow

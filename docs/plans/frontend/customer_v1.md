@@ -1,19 +1,19 @@
 # Customer e-ticket storefront v1
 
-**Status:** Implementation complete for the code changes; DNS/TLS, gateway installation, provider approval, and live production verification are pending  
-**Implementation progress (2026-10-09):**
+**Status:** Customer catalogue and production host routing verified 2026-10-11; provider approval and purchase walkthrough remain pending
+**Implementation progress (updated 2026-10-11):**
 
 | Phase | Status | Notes |
 |---|---|---|
 | 0. Contract and ownership | In progress | Single-event/single-partner v1, IDR, and required email are reflected in implementation; provider validation and dev-hostname decision remain open. |
-| 1. Host and deployment routing | Gateway deployed; app pending | Proxied Cloudflare DNS, Let's Encrypt certificate, and full HTTPS gateway proxy are live and verified. Production still serves an older frontend build, and its ticketing API returns 503. |
+| 1. Host and deployment routing | Verified | Customer/admin/partner/API production hosts render the expected pages or healthy API responses over public HTTPS. |
 | 2. Event discovery | Code complete | Catalogue is a separate component with search, city/date filters, sorting, loading/error/empty states, image fallback, metadata, starting prices, and canonical deep links. |
 | 3. Purchase flow | Code complete | Single-event checkout uses API quote/order/payment flow; session recovery retains idempotency and quote access in tab storage, polls every 15 seconds, and renders issued ticket QR codes from signed values fetched through the private API. Pending-order cancellation requires backend/provider cancellation semantics. |
-| 4. Readiness | Partially complete | Frontend/backend builds, Compose validation, 7 frontend tests, and 5 backend tests pass. DNS/TLS/gateway are live; production frontend/API deployment, event inventory, provider validation, and manual visual/screen-reader checks remain. |
+| 4. Readiness | Partially complete | Frontend/backend builds, Compose configuration, 7 frontend tests, and backend tests pass. Production customer/admin/partner/API pages and API readiness are verified; mobile emulation passed. Provider purchase, available production event inventory, live email, real-device, and screen-reader checks remain. |
 
 
-**Target hostname:** `e-ticket.fluxorastudio.id`  
-**Frontend:** existing React/Vite app in `frontend/`  
+**Target hostname:** `e-ticket.fluxorastudio.id`
+**Frontend:** existing React/Vite app in `frontend/`
 **API:** existing ticketing backend in `backend/`
 
 ## Goal
@@ -103,9 +103,9 @@ The v1 shopping flow is **browse many events, purchase one event per order**. Th
 - [x] Review browser storage and production security behavior. Quote access data is tab-scoped and absent from URLs; bearer ticket QR values are removed before order data is stored. sessionStorage remains readable by same-origin scripts and requires the usual XSS protections.
 - [x] Ensure API calls use HTTPS in hosted environments and CORS permits the customer origin only where needed. Confirm credential use is not enabled unnecessarily for public catalogue/quote calls.
 - [x] Review responsive styles, keyboard focus treatment, semantic labels/live regions, form validation/error announcements, color contrast, and localized date/currency formatting in code. Mobile cards collapse to one column; form controls have visible focus; errors/notices use live regions; event dates and IDR amounts use Indonesian locale formatting. Measured storefront text pairs exceed WCAG AA normal-text contrast: ink/page 13.81:1, muted/page 5.29:1, blue/white 5.37:1, error/error-background 6.79:1, and success/success-background 5.53:1.
-- [ ] Complete manual browser checks on mobile widths and screen-reader announcements. Automated tests verify catalogue keyboard tab order and accessible control names, but no browser binary or screen-reader is available in this workspace to verify rendered layouts and assistive-technology behavior.
-- [x] Add frontend behavior tests for host routing, API environment selection, catalogue filtering/sorting, keyboard tab order/accessibly named controls, and keeping bearer ticket QR values out of session recovery. `npm run build` and `npm test` pass (7 tests).
-- [ ] Validate remaining production readiness: deploy the current frontend, deploy and migrate the production API, validate `/readyz`, create or identify production events with available inventory, and run an approved provider transaction. Keep QRIS disabled until sandbox and operational approval are complete. Verified 2026-10-09: proxied DNS resolves; a public certificate is issued and Certbot renewal is scheduled; the full gateway vhost passed `nginx -t` and reload; direct-origin HTTPS returns 200 with a valid certificate; public Cloudflare HTTPS returns 200 with a valid certificate; HTTP redirects to HTTPS. vm01 production frontend responds but serves an older asset build. The production API `/readyz` returns 503 and its container is absent. The dev API is ready but has zero events with available inventory. Manual mobile and screen-reader checks remain because no browser or screen reader is available in this workspace.
+- [ ] Complete manual screen-reader/assistive-technology and real mobile-device checks. Automated tests verify catalogue keyboard tab order and accessible control names, and axe-core checks the customer catalogue for WCAG 2.1 A/AA violations. Chrome headless axe scans also passed for the admin and partner sign-in screens; 390px mobile emulation verified no horizontal overflow on 2026-10-11.
+- [x] Add frontend behavior tests for host routing, API environment selection, catalogue filtering/sorting, keyboard tab order/accessibly named controls, WCAG 2.1 A/AA axe checks, and keeping bearer ticket QR values out of session recovery. `npm run build` and `npm test` pass (8 tests).
+- [ ] Verify a production purchase using a published event and available inventory after payment sandbox/account approval; checkout remains disabled pending provider validation. Verified 2026-10-11: storefront renders the customer ticket catalogue, the production API `/healthz` and `/readyz` both return 200, and public HTTPS certificates validate. Admin and partner portal hosts route to their staff sign-in screens. Mobile emulation passed; real-device and screen-reader checks remain.
 ## API contract and likely backend follow-up
 
 The existing endpoints are sufficient for a first catalogue and one-event purchase. Before implementation, verify these details against live API responses and address gaps only where required:
@@ -118,7 +118,7 @@ The existing endpoints are sufficient for a first catalogue and one-event purcha
 
 ## Acceptance criteria
 
-- [ ] Visiting `https://e-ticket.fluxorastudio.id/` reaches the gateway over valid HTTPS, but vm01 serves an older frontend asset build. Deploy the current build, then verify the live event catalogue.
+- [x] Visiting `https://e-ticket.fluxorastudio.id/` reaches the public gateway over valid HTTPS and renders the customer ticket catalogue in Chrome headless (verified 2026-10-11). Verify published event availability separately before a real purchase.
 - [x] Customer can browse multiple published events, open an event by a shareable deep link, see performances/ticket types/bundles, and begin checkout for one event.
 - [x] Quote total and expiry shown to the customer come from the API; stale/sold-out selections show API errors and offer ticket reselection.
 - [x] Repeated order creation after a timeout reuses the same tab-persisted idempotency key.
@@ -126,7 +126,7 @@ The existing endpoints are sufficient for a first catalogue and one-event purcha
 - [x] Reload during checkout can recover the order in the same tab session without placing private tokens or QR credentials in the URL.
 - [x] The current studio marketing site, staff portals, `/tickets`, and `/event/:slug` routes remain available in host/path routing.
 - [x] Cloudflare DNS, TLS certificate, full HTTPS proxy vhost, HTTP redirect, and live gateway checks are complete.
-- [ ] Deploy the current frontend and production API, apply production migrations after backup and approval, and run live catalogue/checkout verification.
+- [x] Verify the production frontend, ticketing API readiness, and public HTTPS routing for the customer/admin/partner/API hosts (2026-10-11). Live payment checkout remains gated on provider sandbox/account approval and a stocked production event.
 
 ## Out of scope for v1
 

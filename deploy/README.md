@@ -24,7 +24,7 @@ cd ~/fluxora
 docker compose -f deploy/vm01/app/docker-compose.yml up --build -d dev-frontend
 ```
 
-The current GitHub Actions workflows deploy the frontend on pushes after frontend verification. Pull requests and pushes also build the backend and validate its Prisma schema; they do not deploy the ticketing API. The isolated Fluxora dev/prod PostgreSQL containers have been provisioned on vm01; migrations and API deployment remain separate manual steps.
+The current GitHub Actions workflows deploy the frontend on pushes after frontend verification. Backend verification runs against an isolated PostgreSQL service, applies migrations, runs the seed twice, and exercises database-backed checks; it does not deploy the ticketing API. On 2026-10-11, dev was updated from checkout `47f7642` with all 12 migrations and a current API image. Production remains on an older API image with 11/12 current migrations; back it up and obtain production approval before updating it.
 
 The API Compose services join `postgres_default` and require the untracked vm01 environment file to define `FLUXORA_DEV_DATABASE_URL` and `FLUXORA_PROD_DATABASE_URL`. A dedicated PostgreSQL Compose stack is in `deploy/vm01/postgres/docker-compose.yml`: dev binds to `192.168.100.35:5438`, prod binds to `127.0.0.1:5439`, and each has an independent named volume on `postgres_default`. Keep its `.env` on vm01 only. Payment defaults to disabled in both environments; the RajaOngkir QRISLY adapter is implemented, but live payment must remain disabled until sandbox and merchant-account validation is complete.
 
@@ -77,7 +77,7 @@ Migrations are forward-only. For an application-only rollback, check out the rec
 
 ## Public gateway setup
 
-Create Cloudflare DNS records for the frontend, ticketing portal, and API hostnames in the table above, pointing to the public gateway. As of 2026-10-10, the development admin and partner hostnames have active public Nginx vhosts and origin certificates; both serve the vm01 development frontend at `10.10.0.2:8093`. Other hostnames must be checked and enabled independently. The GitHub Actions workflows deploy to vm01 only; they do not install gateway vhosts or issue certificates.
+Create Cloudflare DNS records for the frontend, ticketing portal, and API hostnames in the table above, pointing to the public gateway. As verified on 2026-10-11, the production customer/admin/partner/API hosts and development admin/partner/API hosts resolve through the public gateway and return their expected page or API health response over HTTPS. Production admin and partner vhosts and Let's Encrypt certificates were installed on the public gateway on 2026-10-11. The GitHub Actions workflows deploy to vm01 only; they do not install gateway vhosts or issue certificates.
 
 For the first certificate issuance, install temporary HTTP-only vhosts for the frontend hostnames and the two API hostnames that serve `/.well-known/acme-challenge/` from `/var/www/certbot` (create that directory first). Keep Cloudflare proxying enabled only if HTTP challenge traffic is allowed through; otherwise temporarily set the records to DNS-only while issuing. Then run:
 

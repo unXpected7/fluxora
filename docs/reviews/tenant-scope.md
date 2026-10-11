@@ -18,5 +18,5 @@
 ## Remaining runtime verification
 
 - Exercise cross-tenant ID and slug substitution, inactive partner/key, missing scope, unauthorized role, and gate assignment cases against isolated fixtures.
-- Verify legacy tenant backfill and order/ticket ownership from a restored database containing representative existing sales data.
+- Synthetic pre-tenant migration fixture passed on 2026-10-11: a legacy event, admin/gate staff, checkout quote, order, and ticket remained intact; event and quote ownership and staff memberships were backfilled to the initial Fluxora partner. Verification against a restored backup containing real historical sales remains pending.
 - Review buyer PII exposure and operational actions after the approved partner role policy is finalized.

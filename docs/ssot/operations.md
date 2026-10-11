@@ -1,15 +1,15 @@
 # Operations and release model
 
-**Reviewed:** 2026-10-10  
-**Status:** Development infrastructure and deployment materials exist. Production ticketing launch remains blocked on deployment and operational readiness items listed below.
+**Reviewed:** 2026-10-11
+**Status:** Dev API is current and healthy; production portal routing is fixed, while the production API image/migrations and operational readiness still need release work.
 
 ## 1. Environments
 
 | Environment | Frontend/API intent | Database | Payment posture |
 |---|---|---|---|
 | Local | Vite frontend and Express API on developer machine | Local PostgreSQL via Compose or PostgreSQL 16+ | Sandbox/default disabled; never use production credentials locally. |
-| Development | Frontend deployed from `main`; API on VM01 port `5102` | Separate Fluxora dev PostgreSQL database | QRIS should remain disabled until merchant sandbox walkthrough passes. |
-| Production | Frontend deployed from `prod`; API intended on VM01 port `5103` | Separate Fluxora prod PostgreSQL database | Keep disabled until provider, data recovery, security, and operations are approved. |
+| Development | Frontend deployed from `main`; current API checkout `47f7642` on VM01 port `5102` | Separate Fluxora dev PostgreSQL database; 12 migrations applied | QRIS remains disabled until merchant sandbox walkthrough passes. |
+| Production | Frontend deployed from `prod`; older API image on VM01 port `5103` | Separate Fluxora prod PostgreSQL database; 11/12 current migrations applied | Keep disabled until provider, data recovery, security, and operations are approved. |
 
 Production and development must have separate DB credentials, payment credentials, webhook encryption keys, signing secrets, allowed origins, and data. Never copy production secrets into development or the repository.
 
@@ -64,7 +64,7 @@ Before a production rollout, the operator must:
 4. Perform restore drills for both environments and record restore procedure, backup age, recovery time, and data-loss window.
 5. Alert on backup failure, storage exhaustion, API readiness failure, worker backlog, and DB availability.
 
-Status: `[NOT DONE]` The backend plan records that there is no configured Fluxora backup schedule/off-host retention and no restore drill. Do not infer recoverability from a documented example dump command.
+Status: `[PARTIAL]` A local isolated restore drill passed 2026-10-11: a 96,549-byte custom-format dump restored to a disposable database with matching migration, event, ticket-type, bundle, and order counts. The dump was removed after verification. Dev/prod backup scheduling, encryption, off-host retention, restore drills, and recovery targets remain unconfigured; this local drill does not establish remote environment recovery.
 
 ## 6. Release procedure (high-level)
 
@@ -84,11 +84,11 @@ Use the exact environment-specific commands in [`../../deploy/README.md`](../../
 
 The following are dated statements from implementation docs, not live checks performed by this SSOT page:
 
-- Backend plan reports isolated dev/prod databases and dev API deployed on VM01 at `10.10.0.2:5102`, with health/readiness/migrations verified and QRIS disabled.
-- Customer storefront rollout notes report customer hostname DNS/TLS and public gateway HTTPS checks complete, but current production frontend assets were older than the checked-in build.
-- The same rollout notes report production API `/readyz` returning 503 and no production API container present.
-- Dev API had no events with available inventory in the recorded storefront rollout check.
-- Manual mobile/screen-reader verification, provider sandbox purchase, Brevo delivery, production event inventory, and full production checkout remain pending.
+- On 2026-10-11, the dev API on VM01 at `10.10.0.2:5102` was rebuilt from checkout `47f7642`, migrated through all 12 Prisma migrations, and verified with health/readiness and a seeded public catalogue event. QRIS remains disabled.
+- Production API `/healthz` and `/readyz` return 200, but the deployed API image is older than the current checkout and the database has 11/12 current migrations. Production update remains subject to backup and approval.
+- Production customer, admin, partner, and API hosts have valid HTTPS; the customer catalogue and staff sign-in screens render. Admin and partner gateway routing was corrected on 2026-10-11.
+- A local database backup was restored to an isolated temporary database on 2026-10-11 and matched migration/event/ticket/bundle/order counts. This does not verify remote backup retention or production restore readiness.
+- Provider sandbox purchase, Brevo delivery, production inventory, authenticated production workflows, real-device/screen-reader verification, and off-host backup/alerting readiness remain pending.
 
 Recheck live environment before relying on these dated states.
 

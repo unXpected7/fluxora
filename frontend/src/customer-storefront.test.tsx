@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import axe from 'axe-core'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CustomerEventCatalogue, isCustomerStorefrontRoute, safeCustomerOrder, ticketingApiUrl, type StoreEvent } from './App.js'
 
@@ -101,6 +102,15 @@ describe('event catalogue', () => {
     expect(document.activeElement).toBe(sort)
     await user.tab()
     expect(document.activeElement).toBe(firstEvent)
+  })
+
+  it('has no WCAG 2.1 A/AA automated accessibility violations', async () => {
+    render(<CustomerEventCatalogue events={events} money={money} lowestPrice={lowestPrice} />)
+    const results = await axe.run(document.body, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results.violations.map(({ id, nodes }) => ({ id, targets: nodes.map(node => node.target) }))).toEqual([])
   })
 
   it('limits events to the selected upcoming date window', async () => {

@@ -31,15 +31,15 @@
 - [x] Build the first public customer storefront slice: published event discovery/detail, single-event ticket/bundle selection, server quote and reservation, idempotent order creation, and payment-session request. Pending QRIS is presented as pending; full wallet/recovery and payment refresh remain open.
 - [x] Add SuperAdmin partner detail view, existing-staff owner assignment, and partner-filtered audit search using the existing protected APIs; frontend production build succeeds.
 - [x] Add seven-day single-use staff invitations with hashed token storage, concurrent-safe create/resend/accept/revoke, first-account password setup, audited acceptance, and one-time manual delivery links; keep invitation tokens out of server request URLs. Invitation preview also explains that a PENDING partner must be activated before workspace access.
-- [ ] Verify both workspaces using provisioned SuperAdmin and partner accounts; a SuperAdmin session and partner accounts are not yet available in the fresh dev database.
-- [x] Apply all 10 Prisma migrations to the fresh vm01 dev database and deploy the dev API privately at `10.10.0.2:5102`; `/healthz`, `/readyz`, and migration status are healthy/current. A restricted pre-migration dev dump is stored on vm01. QRIS remains disabled.
+- [x] Verify SuperAdmin and partner workspace APIs using temporary accounts in the isolated CI database: login/session, partner event access, SuperAdmin quota/operations endpoints, and partner denial from platform-only endpoints pass. No long-lived SuperAdmin account was created in dev or production; authenticated remote portal walkthroughs remain pending account provisioning.
+- [x] Apply all 12 Prisma migrations to fresh CI and the dev database on vm01; rebuild the dev API from the current checkout, seed its published test event, and verify `/healthz`, `/readyz`, and the public catalogue on 2026-10-11. Production API is healthy but remains on an older image with 11/12 current migrations; update it only after backup and production approval. QRIS remains disabled.
 - [x] Deploy the quota reporting revision to dev; health/readiness are healthy and the endpoint requires staff authentication (`401` without a session).
 - [x] Deploy the operational queue snapshot to dev; readiness is healthy and both SuperAdmin monitoring endpoints reject requests without staff authentication (`401`).
-- [x] Add and run backend unit tests for ticket QR signature/tamper checks, webhook SSRF target validation, and RajaOngkir QR session/amount/config validation (4 passing). Backend and frontend builds/type-checks and Prisma schema validation pass. The local `localhost:5439` database is unavailable, so database-backed tenant acceptance tests remain pending.
+- [x] Add and run backend unit tests for ticket QR signature/tamper checks, webhook SSRF target validation, and RajaOngkir QR session/amount/config validation. Fresh PostgreSQL migration/seed and HTTP integration tests pass; the local database restore drill matched schema and ticketing row counts. An isolated pre-tenant schema fixture also preserved a legacy event, quote, order, and ticket while assigning partner ownership and backfilling existing admin/gate memberships.
 - [x] Recheck the deployed dev API from vm01: `/readyz` returns `200 ready` and unauthenticated SuperAdmin partner listing returns `401`.
-- [ ] Verify quota report fields and SuperAdmin authorization with a provisioned authorized dev account; no SuperAdmin session is currently available in the fresh dev database.
-- [ ] Verify operational queue counts and SuperAdmin authorization with a provisioned authorized dev account; no SuperAdmin session is currently available in the fresh dev database.
-- [ ] Verify tenant backfills against a restored database containing existing sales data and complete the authorization review before onboarding an external partner; fresh dev has no legacy rows.
+- [x] Verify quota report fields and SuperAdmin authorization with a temporary isolated CI account; partner owner receives `403` and unauthenticated requests receive `401`.
+- [x] Verify operational queue response fields and SuperAdmin authorization with a temporary isolated CI account; partner owner receives `403` and unauthenticated requests receive `401`.
+- [ ] Verify the tenant backfill against a restored pre-migration database with real historical sales and complete the external-partner authorization review before onboarding; the automated synthetic legacy fixture passes in CI.
 
 ## 1. Product brief
 
@@ -54,7 +54,7 @@ Fluxora will operate four distinct surfaces:
 
 The required relationship is **one partner → many events → many performances and ticket types**. A partner can define bundles for an event. A bundle has one displayed price and contains one or more ticket-type quantities; a paid bundle issues a separate redeemable ticket for each admission in its saved bundle composition.
 
-The Phase 1 backend models events, performances, ticket types, bundles, checkout, QRIS, tickets, gate scans, staff accounts, and event administration. Phase 2 has added partner ownership and scoped staff/API access while preserving existing order and ticket snapshots. The committed Nginx configuration routes development through `dev-api-eticket.fluxorastudio.id` and production through `api-eticket.fluxorastudio.id`. DNS/TLS reachability remains to be verified.
+The Phase 1 backend models events, performances, ticket types, bundles, checkout, QRIS, tickets, gate scans, staff accounts, and event administration. Phase 2 has added partner ownership and scoped staff/API access while preserving existing order and ticket snapshots. Public development and production API routes resolve to their configured vm01 services; production HTTPS and `/healthz`/`/readyz` were verified on 2026-10-11. Real external partner integration and provider settlement remain unverified.
 
 ## 2. Architecture and tenant boundaries
 
@@ -93,11 +93,11 @@ apps/
 backend/          # API and workers; api-eticket.fluxorastudio.id
 ```
 
-Each dashboard calls the API over HTTPS with credentialed requests and a narrowly configured CORS allowlist. Staff session cookies remain HttpOnly, Secure in production, SameSite=Lax, and host-only to the API host; never broaden cookie scope to `.fluxorastudio.id` merely to share a session across dashboards. Verify browser CORS/CSRF behavior for the actual dashboard origins.
+Each dashboard calls the API over HTTPS with credentialed requests and a narrowly configured CORS allowlist. Staff session cookies are HttpOnly, Secure, and `SameSite=None` so browser requests from the separate portal hosts include the API-host cookie; the cookie remains host-only to the API host. Verify browser CORS/session behavior for each actual dashboard origin.
 
 Use `/api/v1` for partner integrations and stable customer-facing API contracts. Keep dashboard-only operations under `/api/platform/v1` and `/api/partner/v1` (or an equivalently clear route split). Public discovery and checkout can remain under `/api/v1`. Do not rely on different hostnames alone for authorization: every route still checks identity, scope, and tenant ownership.
 
-Update DNS, certificates, public Nginx vhosts, frontend build origins, API CORS configuration, monitoring, and deployment documentation for all four hosts. Keep dev/staging equivalents separate from production, for example `dev-admin`, `dev-partner`, `dev-ticket`, and `dev-api-ticket`, after confirming DNS conventions.
+Public DNS, certificates, Nginx vhosts, frontend build origins, and API host routing are configured for the current `*-eticket` production/development hosts; production portal and API TLS/readiness checks passed 2026-10-11. Monitoring ownership and real third-party integration verification remain pending.
 
 ## 4. Partner event and ticket management
 
@@ -211,7 +211,8 @@ Take a restorable backup before each production migration. Do not run tenant bac
 
 ### Phase 0 — Product and money-flow decisions
 
-- [ ] Verify hostnames and ownership against `deploy/nginx-public/`: DNS administrator, TLS/certificate automation, API proxy owner, and live development/production routing.
+- [x] Verify configured production customer/admin/partner/API host routing, HTTPS certificates, and API readiness against `deploy/nginx-public/` on 2026-10-11.
+- [ ] Confirm account ownership and DNS/Cloudflare operational ownership with the domain administrator; validate a real external partner integration.
 - [ ] Confirm tenant operations: partner onboarding evidence, approval/activation steps, suspension reason and recovery, and who can assign a partner owner.
 - [ ] Confirm identity rules: whether staff can join multiple partners, role grants, event-scoped manager/gate assignments, invitations, password recovery, and SuperAdmin MFA.
 - [ ] Choose merchant of record and settlement owner; document QRIS account ownership, partner payout cadence, reconciliation source, and provider reporting.
@@ -224,11 +225,11 @@ Take a restorable backup before each production migration. Do not run tenant bac
 - [x] Add the Partner model, required Event ownership, partner-oriented event index, and a migration that backfills existing events to the Fluxora-owned partner.
 - [x] Extend StaffUser with platform-role storage and add partner memberships, event-staff assignments, partner API key hashes/scopes, and partner-scoped audit records; backfill existing staff memberships without granting SuperAdmin.
 - [x] Scope catalogue administration by partner membership, separate platform SuperAdmin access, require event assignment for gate scans, and derive checkout ownership on the server.
-- [ ] Restore a representative database backup to an isolated verification database; record source backup, restore time, and row counts.
-- [ ] Verify every existing event resolves to exactly one partner, every order resolves through its event items, and every ticket resolves to its paid order/event; report and resolve orphan rows.
-- [ ] Verify existing staff membership backfill and gate assignments without granting SuperAdmin; review inactive and duplicate membership cases.
+- [x] Restore a representative local database backup to an isolated verification database; record dump size, restore time, migration count, and event/ticket-type/bundle/order counts in `test/testplan.md`. Remote VM01 backup/restore remains pending.
+- [x] Check the current local ticketing dataset for event/partner, order/quote, order-item/event, and ticket/order/event orphans; all four checks returned zero on 2026-10-11. The isolated migration fixture also preserved a legacy order and ticket through tenant migration.
+- [x] Verify existing admin/gate membership backfill without granting SuperAdmin in the isolated pre-tenant migration fixture. Historical gate assignment review against a real restored pre-tenant backup remains pending.
 - [x] Complete a static tenant-scope source review for event, performance, ticket type, bundle, order, payment, ticket, membership, API key, webhook, gate assignment, and report routes; record the reviewed access checks and verification boundaries in `docs/reviews/tenant-scope.md`.
-- [ ] Add and run cross-tenant denial acceptance coverage for ID substitution, slug substitution, inactive partner/key, wrong scopes, and unauthorized staff roles before onboarding a second tenant.
+- [x] Add and run cross-tenant denial acceptance coverage for partner ID substitution and platform-only endpoints in isolated HTTP integration tests; the prior API E2E run also covered tenant ID/slug boundaries, key scopes, and inactive/revoked keys. Additional external-partner security review remains a pre-onboarding gate.
 
 ### Phase 2 — SuperAdmin and partner administration
 
@@ -265,9 +266,11 @@ Take a restorable backup before each production migration. Do not run tenant bac
 
 ### Phase 4 — Partner API and webhooks
 
-- [ ] Decide and publish the development API hostname; configure its DNS, TLS, reverse proxy, CORS origin, and API health monitoring.
+- [x] Publish and verify the development API hostname, DNS/TLS, reverse proxy, and configured CORS origin; API liveness/readiness return healthy responses.
+- [ ] Assign API health monitoring and alert ownership.
 - [x] Document the `/api/v1` contract, limits, errors, idempotency, key lifecycle, and webhook receiver guidance in `docs/api/partner-v1.md`; correct docs to match implemented webhooks and usage reporting.
-- [ ] Verify public DNS/TLS and publish the API contract on the configured host `api-eticket.fluxorastudio.id`.
+- [x] Verify production API DNS/TLS and `/healthz`/`/readyz`; OpenAPI specifications publish the configured host `api-eticket.fluxorastudio.id`.
+- [ ] Validate the documented partner API and webhooks with an external partner receiver.
 - [ ] Exercise key creation, one-time display, scope denial, quota `429`, expiry, revocation, immediate rotation, and bounded overlap from a separate organizer client.
 - [ ] Exercise quote/order idempotency and partner isolation using valid, wrong-partner, expired, revoked, and insufficient-scope keys.
 - [ ] Validate webhook HMAC/timestamp verification, event deduplication, secret rotation, retry schedule, dead-letter visibility, and manual replay with a receiver.
@@ -283,14 +286,15 @@ Take a restorable backup before each production migration. Do not run tenant bac
 - [x] Implement and build the initial SuperAdmin and partner portal UI against the existing staff session/admin APIs.
 - [x] Deploy the quota-observability revision to dev and confirm the unauthenticated request is denied.
 - [x] Deploy operational queue visibility to dev; readiness is healthy and unauthenticated access is denied.
-- [ ] Verify the SuperAdmin-only report response with a provisioned authorized dev account.
-- [ ] Verify queue counts and oldest-due timestamps with a provisioned SuperAdmin account.
+- [x] Verify the SuperAdmin-only report response with a temporary isolated integration account; partner owner receives 403 and unauthenticated requests receive 401.
+- [x] Verify queue fields and SuperAdmin authorization with a temporary isolated integration account; partner owner receives 403 and unauthenticated requests receive 401.
 - [ ] Configure dev database backup schedule and off-VM copy/retention; document restore commands and perform a restore drill.
 - [x] Inspect vm01 backup scheduling read-only: no Fluxora backup directory or database backup cron job exists; host telemetry is the only user cron entry. The off-VM target and retention policy are still needed before scheduling copies.
 - [ ] Configure API/worker/database/host alerts, define quota threshold review and responder, and document deployment rollback steps.
 - [ ] Reconcile the staged `*-eticket` dashboard/API hostnames with the requested `admin`, `partner`, `ticket`, and `api-ticket` domains; confirm DNS/TLS ownership and CORS origins.
 - [x] Deploy and verify the dev storefront/dashboard frontend at `10.10.0.2:8093` and API at `10.10.0.2:5102`; frontend responds `200`, API `/readyz` responds `200`, and unauthenticated SuperAdmin access responds `401`. API uses the isolated dev database and provider remains disabled.
-- [ ] Install and verify the approved public dashboard/storefront/API hostnames; production migration and API deployment remain pending.
+- [x] Install and verify public customer/admin/partner/API hosts; production ticketing API `/healthz` and `/readyz` return 200 and the customer catalogue/admin/partner sign-in pages load over HTTPS as of 2026-10-11.
+- [ ] Verify authenticated production staff workflows and an approved production checkout after payment credentials, production event inventory, and provider approval are available.
 - [ ] Complete provider sandbox purchase, callback reconciliation, ticket email, late-payment refund-review, and end-to-end gate validation.
 - [ ] Complete cross-tenant security review, operational runbooks, incident/refund support training, and production readiness review.
 - [ ] Launch production domains and onboard the first external partner only after product, provider, security, backup, and operational gates pass.

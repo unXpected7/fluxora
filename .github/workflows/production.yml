@@ -30,11 +30,30 @@ jobs:
 
   verify-backend:
     runs-on: self-hosted
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fluxora
+          POSTGRES_PASSWORD: fluxora_ci
+          POSTGRES_DB: fluxora_eticket
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U fluxora -d fluxora_eticket"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     defaults:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: postgresql://fluxora:fluxora_ci@localhost:5432/fluxora_eticket
+      NODE_ENV: test
+      DATABASE_URL: postgresql://fluxora:fluxora_ci@localhost:54329/fluxora_eticket
+      RUN_DATABASE_INTEGRATION_TESTS: "1"
+      RUN_TENANT_BACKFILL_INTEGRATION_TESTS: "1"
+      CLIENT_ORIGIN: http://localhost:5173,http://admin.localhost:5173,http://partner.localhost:5173,https://dev.fluxorastudio.id,https://dev-admin-eticket.fluxorastudio.id,https://dev-partner-eticket.fluxorastudio.id,https://e-ticket.fluxorastudio.id,https://admin-eticket.fluxorastudio.id,https://partner-eticket.fluxorastudio.id
+      STAFF_CLIENT_ORIGIN: http://admin.localhost:5173,http://partner.localhost:5173,https://dev-admin-eticket.fluxorastudio.id,https://dev-partner-eticket.fluxorastudio.id,https://admin-eticket.fluxorastudio.id,https://partner-eticket.fluxorastudio.id
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,11 +62,20 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci --no-audit --no-fund
-      - run: npm test
-      - run: npm audit --audit-level=high
       - run: npm run db:generate
       - run: npx prisma validate
+      - run: npx prisma migrate deploy
+      - run: npm run db:seed
+      - run: npm run db:seed
+      - run: npm test
+      - run: npm audit --audit-level=high
       - run: npm run build
+      - name: Run Chromium browser E2E
+        run: |
+          cd frontend
+          npm ci --no-audit --no-fund
+          npx playwright install chromium
+          npm run e2e
 
   deploy-production:
     if: github.event_name == 'push'

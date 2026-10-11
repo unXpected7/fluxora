@@ -1,6 +1,6 @@
 # Fluxora e-ticketing backend implementation plan
 
-**Status:** In progress — vm01 dev/prod databases provisioned; dev API deployed privately and healthy with QRIS disabled; DNS/TLS and provider-account rollout pending
+**Status:** In progress — vm01 dev/prod databases and APIs are provisioned and healthy; production public portal/API DNS, TLS, and Nginx routing were verified 2026-10-11. QRIS and transactional email remain disabled/pending provider-account validation.
 **Scope:** Build the backend under `backend/` for concert ticket sales, multiple ticket types, bundles, QRIS checkout, and admission validation. Use Nilam as the architectural reference, while keeping Fluxora's deployment hostnames and event-specific domain model.
 
 ### Progress
@@ -10,14 +10,14 @@
 - [x] Provider-confirmed late payments without a live inventory reservation enter audited refund review and do not issue tickets; admin can record a manually completed provider refund.
 - [x] RajaOngkir QRISLY adapter, authenticated status reconciliation, verified settlement, and QR ticket issuance; sandbox merchant validation remains pending.
 - [x] Dev/prod API Compose services, API gateway vhost files, health checks, and environment-specific secret wiring staged in the repository.
-- [x] Backend build and Prisma schema checks added to both branch workflows; API deployment remains manual and separate from frontend deployment.
-- [x] Add and run unit coverage for ticket QR signing/tamper rejection, webhook SSRF URL validation, and RajaOngkir QR session amount/config parsing (4 passing); backend/frontend builds and type-checks pass. Full provider sandbox and DB-backed tenant scenarios remain open.
+- [x] Backend build and Prisma schema checks added to both branch workflows; isolated PostgreSQL migration/seed checks are also included; API deployment remains manual and separate from frontend deployment.
+- [x] Add and run unit coverage for ticket QR signing/tamper rejection, webhook SSRF URL validation, RajaOngkir QR session parsing, transaction conflicts, payment reconciliation, database migrations/seeding, and Swagger structure/parity. Full provider sandbox and external tenant scenarios remain open.
 - [x] Migration-only Compose tasks and database backup, rollout, and rollback instructions documented. Automated backup scheduling and off-VM retention remain infrastructure work.
 - [x] Nilam-style staff sessions, separate gate/admin roles, staff provisioning, rate-limited atomic check-in, scan audit, admin catalogue management, and a retried ticket-email outbox.
 - [x] Provision isolated PostgreSQL 16 dev/prod databases on vm01 using ports 5438/5439, separate persistent volumes, and private credential storage.
-- [x] Apply all 10 Prisma migrations to the fresh dev database and deploy the dev API on vm01 at `10.10.0.2:5102`; `/healthz`, `/readyz`, and Prisma migration status verified. QRIS remains disabled.
-- [ ] Install DNS/TLS/API vhosts and configure provider and email credentials.
-- [ ] Complete RajaOngkir/Brevo sandbox walkthrough and operational approval before production enablement. Automated provider refunds remain unimplemented pending a confirmed provider/policy contract; late-paid manual review is implemented.
+- [x] Apply all 12 Prisma migrations to fresh dev and CI databases; rebuild the dev API from the current checkout and verify its health, readiness, and seeded catalogue. Production `/healthz` and `/readyz` return 200, but its API image is older and its database has 11/12 current migrations; update only after backup and production approval. QRIS remains disabled.
+- [x] Install and verify the public development and production API/portal DNS, TLS certificates, and Nginx vhosts. Automated deployment of gateway vhosts remains manual.
+- [ ] Configure provider and email credentials and complete the RajaOngkir/Brevo sandbox walkthrough and operational approval before production enablement. Automated provider refunds remain unimplemented pending a confirmed provider/policy contract; late-paid manual review is implemented.
 
 ## 1. Goal
 
@@ -156,9 +156,9 @@ Finalize API names and the order lookup access model during implementation. Do n
 ### Phase A — Decisions and provider verification
 
 - [x] Provision separate Fluxora dev/prod PostgreSQL databases and credentials on vm01; dev binds to `192.168.100.35:5438`, prod to `127.0.0.1:5439`.
-- [ ] Confirm API hostname ownership and final mapping for dev and production.
-- [ ] Create DNS records and TLS certificates for the approved API hosts; verify HTTPS renewal and reverse-proxy forwarding headers.
-- [ ] Configure API vhosts to proxy to the dev/prod API ports and set frontend origins/CORS to the approved storefront hosts.
+- [x] Confirm API hostnames and mappings for development and production against the deployment configuration.
+- [x] Verify public DNS/TLS and API vhost routing to the dev/prod API ports; Certbot renewal is scheduled on the public gateway.
+- [x] Configure API proxy forwarding headers and environment-specific customer/staff CORS origins in deployment configuration.
 - [ ] Obtain and store RajaOngkir sandbox API credentials and merchant QRIS ID in the dev secret store; keep dev payment provider disabled until callback validation is ready.
 - [ ] Generate a sandbox QR and record actual QRIS ID, history ID, amount, currency, expiry, and status response formats against the adapter contract.
 - [ ] Register the dev HTTPS callback with RajaOngkir, inspect callback authentication/signature support, and confirm server-side status reconciliation handles duplicate and out-of-order events.
@@ -195,7 +195,7 @@ Finalize API names and the order lookup access model during implementation. Do n
 - [x] Add backend dev/prod Compose services, API Nginx vhost files, health checks, secret wiring, backend CI verification, migration-only tasks, and backup/rollback runbook.
 - [x] Inspect vm01 backup scheduling read-only: no Fluxora backup directory or database backup cron job exists; only host telemetry is scheduled. Off-VM storage and retention details are still required before configuring backups.
 - [ ] Schedule encrypted dev/prod PostgreSQL backups and copy them off vm01 with separate environment paths and retention.
-- [ ] Perform a restore drill for each environment and document recovery time, restore commands, and backup age checks.
+- [ ] Complete remote dev/prod restore drills and document recovery time, restore commands, and backup age checks. A local isolated restore drill passed on 2026-10-11; it does not verify VM01 retention, off-host copies, or production recovery.
 - [ ] Configure host/container/database disk, health, backup-failure, and API-worker alerts with an assigned responder.
 - [x] Deploy the dev API against the dedicated dev database; verify health/readiness and migration status. QRIS remains disabled.
 - [ ] Walk through event setup, ticket/bundle purchase, QRIS confirmation, email delivery, and gate check-in in sandbox; record expected outcomes and operational steps.

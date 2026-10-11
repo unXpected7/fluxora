@@ -14,7 +14,7 @@ The customer, staff admin, and partner hostnames serve web portals, not separate
 ## Authentication and sensitive values
 
 - Customer quote and private order operations use the quote `accessToken` as a bearer token. Keep it private and out of URLs, logs, and analytics.
-- Staff endpoints use the HttpOnly `fluxora_staff` cookie. Role and partner/event ownership checks remain enforced by the backend.
+- Protected staff endpoints use the HttpOnly `fluxora_staff` cookie. Login and invitation preview/accept are public; session inspection and logout accept a missing cookie. Role and partner/event ownership checks remain enforced by the backend.
 - `/api/v1` partner integration uses a partner API key bearer token and the scopes listed on each operation. Order reads also require the quote token.
 - Payment callbacks prompt server-side reconciliation; callback payload fields do not establish a paid state.
 
@@ -24,3 +24,4 @@ The customer, staff admin, and partner hostnames serve web portals, not separate
 - Checkout prices are computed server-side. Quote creation reserves inventory; order creation requires an `Idempotency-Key`.
 - These specifications describe the implemented backend. They do not imply that production DNS, TLS, external payment callbacks, email delivery, or third-party integration have been verified.
 - The configured partner API host is `api-eticket.fluxorastudio.id`; development uses `dev-api-eticket.fluxorastudio.id`.
+- Backend tests check OpenAPI 3.1 structure, configured dev/prod API servers, documented response entries, and parity between portal specs and the complete spec. They also enumerate every live Express route and method, require all path parameters to be documented, and check documented authentication schemes against the runtime route class. The checks do not validate every response field or prove role authorization behavior; those still need business-flow integration coverage.

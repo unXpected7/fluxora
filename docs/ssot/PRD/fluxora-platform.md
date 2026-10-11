@@ -1,6 +1,6 @@
 # Fluxora Platform Product Requirements Document
 
-**Status legend:** `[DONE]` = implemented in this repository or explicitly verified in the target environment; `[NOT DONE]` = missing, awaiting a decision, or awaiting verification. A feature marked done in code may still be unavailable to customers until its deployment and operational prerequisites are complete.
+**Status legend:** `[DONE]` = implemented in this repository or explicitly verified in the target environment; `[PARTIAL]` = some acceptance criteria are verified while follow-up remains; `[NOT DONE]` = missing, awaiting a decision, or awaiting verification. A feature marked done in code may still be unavailable to customers until its deployment and operational prerequisites are complete.
 
 **Last reviewed:** 2026-10-10  
 **Product owner:** Fluxora Studio  
@@ -140,7 +140,7 @@ The repository does not yet define operational targets or analytics baselines. T
 | CAT-04 | Provide loading, retryable error, empty, and sold-out/closed states. | `[DONE]` Implemented in the catalogue/storefront flow. |
 | CAT-05 | Provide reloadable event deep links and page metadata/canonical behavior. | `[DONE]` `/event/:slug` and storefront routing are implemented. |
 | CAT-06 | Keep displayed availability advisory and revalidate selection through quote creation. | `[DONE]` Quote creation is authoritative. |
-| CAT-07 | Make the public customer storefront available at `e-ticket.fluxorastudio.id`. | `[NOT DONE]` Gateway/DNS/TLS are reported live, but production frontend serves an older build; current catalogue availability has not been verified live. |
+| CAT-07 | Make the public customer storefront available at `e-ticket.fluxorastudio.id`. | `[DONE]` Verified 2026-10-11 over public HTTPS; headless Chrome renders the current ticket catalogue. Recheck after frontend deployments. |
 
 ### 5.3 Checkout, payment, order recovery, and tickets
 
@@ -174,7 +174,7 @@ The repository does not yet define operational targets or analytics baselines. T
 | OPS-03 | Manage partners, status, ownership, audit history, usage, queues, and refund review as SuperAdmin. | `[DONE]` Implemented in backend and platform portal. |
 | OPS-04 | Create/edit/archive events and manage performances, ticket categories, bundle definitions, capacity, sales windows, and limits. | `[DONE]` Implemented. Capacity cannot be reduced below sold plus reserved inventory; bundle composition is fixed after creation. |
 | OPS-05 | Manage memberships, gate assignments, and event-scoped order/admission views. | `[DONE]` Implemented; the displayed order view omits buyer contact details and QR credentials. |
-| OPS-06 | Invite partner staff with single-use, expiring invitations and accept onboarding in the portal. | `[DONE]` Backend invitation lifecycle and migration exist. `[NOT DONE]` Frontend readme still says invitation onboarding is not implemented, and invitation email delivery is not configured; verify current UI and close this documentation/status discrepancy. |
+| OPS-06 | Invite partner staff with single-use, expiring invitations and accept onboarding in the portal. | `[DONE]` Backend lifecycle, partner portal acceptance UI, and create/preview/accept/revoke/expiry flows are implemented and tested. Invitation links are delivered manually; automated invitation email remains pending provider setup. |
 | OPS-07 | Record administrative mutations and check-in scans in audit records. | `[DONE]` Implemented. |
 | OPS-08 | Validate check-in within event/performance windows and accept each ticket only once. | `[DONE]` Online atomic validation and result states are implemented. |
 | OPS-09 | Operate gate scanning without connectivity. | `[NOT DONE]` No offline scanner or synchronization behavior is implemented/documented. |
@@ -189,7 +189,7 @@ The repository does not yet define operational targets or analytics baselines. T
 | INT-03 | Create, rotate, revoke, and expire API keys; reveal secrets once and store hashes. | `[DONE]` Implemented. |
 | INT-04 | Apply shared database-backed per-key request quotas and expose safe usage metrics to SuperAdmins. | `[DONE]` Fixed-window quotas and usage endpoint implemented. |
 | INT-05 | Send signed partner webhooks with stable delivery IDs, retries, and replay support. | `[DONE]` Implemented with encrypted endpoint secrets, HMAC signatures, SSRF protections, bounded retries, and admin replay. |
-| INT-06 | Publish and verify the partner integration hostname and validate a real external integration. | `[NOT DONE]` The committed Nginx configuration uses `api-eticket.fluxorastudio.id` (development: `dev-api-eticket.fluxorastudio.id`). DNS/TLS reachability and a real external integration remain unverified. |
+| INT-06 | Publish and verify the partner integration hostname and validate a real external integration. | `[PARTIAL]` Public DNS/TLS and production `/healthz` and `/readyz` verified 2026-10-11. A real external partner integration remains unverified. |
 | INT-07 | Expose partner settlement reports and cross-partner checkout. | `[NOT DONE]` Out of current v1 scope. |
 
 ### 5.6 Security, privacy, and accessibility
@@ -198,9 +198,9 @@ The repository does not yet define operational targets or analytics baselines. T
 |---|---|---|
 | SEC-01 | Keep payment secrets, API key secrets, signing keys, and DB credentials out of source control and browser bundles. | `[DONE]` Configuration is environment-based; secrets are hashed/encrypted where appropriate. Deployment secret configuration still needs completion. |
 | SEC-02 | Avoid leaking customer contact information and QR bearer tokens in public catalogue, partner event order lists, logs, or webhooks. | `[DONE]` Documented response boundaries and private order access are implemented. |
-| SEC-03 | Use HTTPS for hosted customer, staff, and API routes with scoped CORS origins. | `[DONE]` Gateway HTTPS for customer hostname is reported verified; `[NOT DONE]` production API and all staff portal hostnames require deployment verification. |
+| SEC-03 | Use HTTPS for hosted customer, staff, and API routes with scoped CORS origins. | `[DONE]` Customer, admin, partner, and API production hostnames returned valid HTTPS on 2026-10-11; staff-origin access was covered by local browser/API tests. |
 | SEC-04 | Protect outbound webhook delivery from SSRF and authenticate payloads with timestamped HMAC. | `[DONE]` Implemented. |
-| SEC-05 | Apply accessible labels, focus behavior, live error announcements, responsive behavior, and contrast to ticket storefront. | `[DONE]` Code review and contrast measurements are documented. `[NOT DONE]` Manual mobile and screen-reader verification remains. |
+| SEC-05 | Apply accessible labels, focus behavior, live error announcements, responsive behavior, and contrast to ticket storefront. | `[PARTIAL]` Code review, contrast measurements, keyboard tests, a customer-catalogue axe-core CI audit, local customer/admin/partner axe scans, and 390px Chrome mobile emulation passed 2026-10-11. Real mobile-device and screen-reader verification remains. |
 | SEC-06 | Define customer data retention, privacy notice, consent requirements, and incident response ownership. | `[NOT DONE]` No approved policy or evidence is recorded in this repository. |
 
 ## 6. Core user journeys
@@ -277,15 +277,15 @@ The public topology separates the studio frontend, ticketing storefront, staff p
 | Release item | Status |
 |---|---|
 | Studio site development and production frontend deployment paths | `[DONE]` Workflows and routing are documented. |
-| Ticketing dev/prod API services, Compose configuration, isolated databases, migrations, health/readiness | `[DONE]` Dev API and database were reported ready; production API container is absent/readiness was reported 503 in the 2026-10-09 rollout notes. |
+| Ticketing dev/prod API services, Compose configuration, isolated databases, migrations, health/readiness | `[PARTIAL]` Dev API/database have all 12 migrations and are healthy. Production API/database are healthy, but production has 11/12 current migrations and still runs the older API image. |
 | Customer storefront DNS/TLS/gateway route | `[DONE]` Public HTTPS and gateway checks are reported complete. |
-| Current ticket storefront build on production host | `[NOT DONE]` Production is reported to serve an older frontend asset build. |
-| Production ticketing API deployment and migration | `[NOT DONE]` Deploy service, back up DB, apply migrations, verify readiness. |
-| Staff portal hostnames and API routes | `[NOT DONE]` Verify DNS/TLS/gateway publication for admin and partner portals in each environment. |
+| Current ticket storefront build on production host | `[DONE]` Production renders the ticket catalogue in Chrome headless at `e-ticket.fluxorastudio.id`; latest asset parity is not separately recorded. |
+| Production ticketing API deployment and migration | `[PARTIAL]` Production `/readyz` returns 200, but its image is older than the current source and its DB has 11/12 migrations. Back up production and apply the current API only after production approval. |
+| Staff portal hostnames and API routes | `[DONE]` Production admin/partner hosts return their respective sign-in pages over valid HTTPS; development hosts were also checked. Authenticated production sessions remain unverified. |
 | Payment provider sandbox and production credentials | `[NOT DONE]` Merchant account behavior, callback configuration, and approvals are unverified; keep payment disabled. |
 | Brevo sender/domain and ticket email walkthrough | `[NOT DONE]` Configure and verify delivery and retry behavior. |
 | Database backups, off-host retention, restore drills, operational alerts | `[NOT DONE]` Required before production launch. |
-| External partner API host and integration verification | `[NOT DONE]` Canonical hostname is unresolved in docs; verify DNS/TLS and a real client flow. |
+| External partner API host and integration verification | `[PARTIAL]` Canonical API hosts are `api-eticket.fluxorastudio.id` and `dev-api-eticket.fluxorastudio.id`; public DNS/TLS and health/readiness were verified 2026-10-11. A real external partner client flow remains unverified. |
 
 ## 10. Acceptance criteria for public ticketing launch
 

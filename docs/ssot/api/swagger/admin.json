@@ -239,7 +239,8 @@
         "security": [
           {
             "staffCookie": []
-          }
+          },
+          {}
         ]
       }
     },
@@ -286,7 +287,8 @@
         "security": [
           {
             "staffCookie": []
-          }
+          },
+          {}
         ]
       }
     },
@@ -2550,11 +2552,11 @@
         "summary": "Retry ticket delivery",
         "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.",
         "responses": {
-          "201": {
-            "description": "Created"
-          },
           "200": {
             "description": "Successful response or idempotent replay"
+          },
+          "201": {
+            "description": "Created"
           },
           "400": {
             "description": "Invalid request"
@@ -2603,11 +2605,11 @@
         "summary": "Record externally confirmed refund",
         "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.",
         "responses": {
-          "201": {
-            "description": "Created"
-          },
           "200": {
             "description": "Successful response or idempotent replay"
+          },
+          "201": {
+            "description": "Created"
           },
           "400": {
             "description": "Invalid request"
@@ -4742,11 +4744,11 @@
         "summary": "Retry ticket delivery",
         "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend. Partner-scoped access requires an active OWNER, ADMIN, or EVENT_MANAGER membership; resource ownership is checked on each request.",
         "responses": {
-          "201": {
-            "description": "Created"
-          },
           "200": {
             "description": "Successful response or idempotent replay"
+          },
+          "201": {
+            "description": "Created"
           },
           "400": {
             "description": "Invalid request"
@@ -4803,11 +4805,11 @@
         "summary": "Record externally confirmed refund",
         "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend. Partner-scoped access requires an active OWNER, ADMIN, or EVENT_MANAGER membership; resource ownership is checked on each request.",
         "responses": {
-          "201": {
-            "description": "Created"
-          },
           "200": {
             "description": "Successful response or idempotent replay"
+          },
+          "201": {
+            "description": "Created"
           },
           "400": {
             "description": "Invalid request"
@@ -4852,6 +4854,480 @@
             "schema": {
               "type": "string"
             }
+          }
+        ]
+      }
+    },
+    "/api/staff/partners/{scopePartnerId}/admin/partners/{partnerId}": {
+      "get": {
+        "tags": [
+          "Platform admin"
+        ],
+        "summary": "Get partner",
+        "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.\n\nThis SUPERADMIN-only alias is also mounted inside the partner-scoped admin router. The outer scope segment does not grant access to partner operators.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "staffCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopePartnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner scope checked before the SUPERADMIN-only operation."
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Platform admin"
+        ],
+        "summary": "Update partner",
+        "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.\n\nThis SUPERADMIN-only alias is also mounted inside the partner-scoped admin router. The outer scope segment does not grant access to partner operators.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "staffCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopePartnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner scope checked before the SUPERADMIN-only operation."
+          }
+        ]
+      }
+    },
+    "/api/staff/partners/{scopePartnerId}/admin/partners/{partnerId}/owners": {
+      "post": {
+        "tags": [
+          "Platform admin"
+        ],
+        "summary": "Assign partner owner",
+        "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.\n\nThis SUPERADMIN-only alias is also mounted inside the partner-scoped admin router. The outer scope segment does not grant access to partner operators.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "staffCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopePartnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner scope checked before the SUPERADMIN-only operation."
+          }
+        ]
+      }
+    },
+    "/api/staff/partners/{scopePartnerId}/admin/partners/{partnerId}/invitations": {
+      "get": {
+        "tags": [
+          "Platform admin"
+        ],
+        "summary": "List invitations",
+        "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.\n\nThis SUPERADMIN-only alias is also mounted inside the partner-scoped admin router. The outer scope segment does not grant access to partner operators.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "staffCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopePartnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner scope checked before the SUPERADMIN-only operation."
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Platform admin"
+        ],
+        "summary": "Create staff invitation",
+        "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.\n\nThis SUPERADMIN-only alias is also mounted inside the partner-scoped admin router. The outer scope segment does not grant access to partner operators.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "staffCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopePartnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner scope checked before the SUPERADMIN-only operation."
+          }
+        ]
+      }
+    },
+    "/api/staff/partners/{scopePartnerId}/admin/partners/{partnerId}/invitations/{invitationId}/resend": {
+      "post": {
+        "tags": [
+          "Platform admin"
+        ],
+        "summary": "Resend invitation",
+        "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.\n\nThis SUPERADMIN-only alias is also mounted inside the partner-scoped admin router. The outer scope segment does not grant access to partner operators.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "staffCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopePartnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner scope checked before the SUPERADMIN-only operation."
+          }
+        ]
+      }
+    },
+    "/api/staff/partners/{scopePartnerId}/admin/partners/{partnerId}/invitations/{invitationId}": {
+      "delete": {
+        "tags": [
+          "Platform admin"
+        ],
+        "summary": "Revoke invitation",
+        "description": "Requires active staff session and role/partner scope. SuperAdmin-only routes are enforced by the backend.\n\nThis SUPERADMIN-only alias is also mounted inside the partner-scoped admin router. The outer scope segment does not grant access to partner operators.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid authentication"
+          },
+          "403": {
+            "description": "Insufficient role or scope"
+          },
+          "404": {
+            "description": "Resource unavailable or outside caller scope"
+          },
+          "409": {
+            "description": "Conflict, expired quote, inventory or idempotency conflict"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "description": "Unexpected server error; response includes requestId"
+          }
+        },
+        "security": [
+          {
+            "staffCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "partnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scopePartnerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner scope checked before the SUPERADMIN-only operation."
           }
         ]
       }
