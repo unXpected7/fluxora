@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import { config } from './lib/config.js'
 import { PaymentProviderUnavailableError } from './lib/paymentProvider.js'
 import { prisma } from './lib/prisma.js'
+import { isTransactionConflictError } from './lib/prismaErrors.js'
 import { CheckoutConflictError, CheckoutInputError, checkoutRouter } from './routes/checkout.js'
 import { eventsRouter } from './routes/events.js'
 import { releaseExpiredReservations } from './lib/inventoryReservations.js'
@@ -45,7 +46,8 @@ app.use('/api/staff', staffRouter)
 app.use((request, response) => response.status(404).json({ message: 'Route not found', requestId: response.locals.requestId }))
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
   const errorName = error instanceof Error ? error.name : 'UnknownError'
-  console.error(JSON.stringify({ event: 'request_error', requestId: response.locals.requestId, errorName }))
+  const errorCode = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined
+  console.error(JSON.stringify({ event: 'request_error', requestId: response.locals.requestId, errorName, ...(errorCode ? { errorCode } : {}) }))
   if (error instanceof CheckoutInputError) {
     response.status(400).json({ message: error.message })
     return
@@ -58,7 +60,7 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
     response.status(503).json({ message: 'QRIS checkout is not available yet.' })
     return
   }
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+  if (isTransactionConflictError(error)) {
     response.status(409).json({ message: 'Inventory changed during checkout. Refresh availability and retry.' })
     return
   }

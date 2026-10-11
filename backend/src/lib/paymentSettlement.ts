@@ -7,6 +7,10 @@ import { enqueuePartnerWebhook } from './partnerWebhooks.js'
 
 type SnapshotComponent = { ticketTypeId: string; performanceId: string; quantity: number }
 
+export function shouldSkipRecentPaymentStatusCheck(attemptStatus: string, providerStatus: string | null, updatedAt: Date, now = Date.now(), force = false) {
+  return !force && attemptStatus === 'PENDING' && ['unpaid', 'status_unavailable'].includes(providerStatus || '') && now - updatedAt.getTime() < 30_000
+}
+
 function bundleComponents(value: Prisma.JsonValue | null): SnapshotComponent[] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Bundle ticket snapshot is invalid')
   const components = (value as { components?: unknown }).components
@@ -128,7 +132,7 @@ export async function reconcileRajaOngkirPayment(providerPaymentId: string, forc
   if (!attempt) return 'unknown'
   if (attempt.status === 'PAID') return attempt.order.status === 'REFUND_PENDING' ? 'refund_pending' : attempt.order.status === 'REFUNDED' ? 'closed' : 'paid'
   if (attempt.status === 'REFUNDED') return 'closed'
-  if (attempt.status === 'PENDING' && ['unpaid', 'status_unavailable'].includes(attempt.providerStatus || '') && Date.now() - attempt.updatedAt.getTime() < 30_000) return 'pending'
+  if (shouldSkipRecentPaymentStatusCheck(attempt.status, attempt.providerStatus, attempt.updatedAt, Date.now(), force)) return 'pending'
   if (attempt.status !== 'PENDING' && !force && Date.now() - attempt.updatedAt.getTime() < 30_000) return 'closed'
   let status
   try {

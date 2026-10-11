@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { afterEach, describe, it } from 'node:test'
 import { RajaOngkirQrislyProvider } from '../src/lib/rajaongkir.js'
-import { validateWebhookUrl } from '../src/lib/partnerWebhooks.js'
+import { signPartnerWebhook, validateWebhookUrl } from '../src/lib/partnerWebhooks.js'
 import { ticketQrToken, verifyTicketQrToken } from '../src/lib/ticketQr.js'
 import { isStaffOriginAllowed } from '../src/lib/staffOrigin.js'
+import { clearStaffCookie, setStaffCookie } from '../src/lib/staffAuth.js'
 
 const originalFetch = globalThis.fetch
 const originalSecret = process.env.TICKET_QR_SIGNING_SECRET
@@ -27,6 +28,17 @@ describe('staff origin allowlist', () => {
   })
 })
 
+describe('staff session cookies', () => {
+  it('supports credentialed requests from split localhost portal and API hosts', () => {
+    const values: string[] = []
+    const response = { append: (_name: string, value: string) => values.push(value) } as unknown as import('express').Response
+    setStaffCookie(response, 'test-session')
+    clearStaffCookie(response)
+    assert.match(values[0]!, /HttpOnly; SameSite=None; Max-Age=28800; Secure/)
+    assert.match(values[1]!, /HttpOnly; SameSite=None; Max-Age=0; Secure/)
+  })
+})
+
 describe('ticket QR signatures', () => {
   it('accepts an untampered signed ticket and rejects tampering', () => {
     process.env.TICKET_QR_SIGNING_SECRET = 'test-only-secret-with-at-least-32-bytes'
@@ -44,6 +56,25 @@ describe('partner webhook URL validation', () => {
     await assert.rejects(validateWebhookUrl('https://127.0.0.1/hooks'), /public IP/)
     await assert.rejects(validateWebhookUrl('http://8.8.8.8/hooks'), /HTTPS/)
     await assert.rejects(validateWebhookUrl('https://user:pass@8.8.8.8/hooks'), /HTTPS/)
+  })
+
+  it('rejects private, link-local, and local IPv6 destinations', async () => {
+    for (const url of [
+      'https://10.0.0.1/hooks',
+      'https://169.254.1.1/hooks',
+      'https://[::1]/hooks',
+      'https://[fc00::1]/hooks',
+      'https://[fe80::1]/hooks',
+    ]) {
+      await assert.rejects(validateWebhookUrl(url), undefined, url)
+    }
+  })
+})
+
+describe('partner webhook signatures', () => {
+  it('signs the timestamp and exact serialized payload bytes', () => {
+    assert.equal(signPartnerWebhook('whsec_test', '1700000000', '{"id":"abc"}'), '38d2090fd7375d8bb1f1e9059a9956d24e8a05fd20a5adb008c5f18944e39fd1')
+    assert.notEqual(signPartnerWebhook('whsec_test', '1700000000', '{ "id":"abc"}'), '38d2090fd7375d8bb1f1e9059a9956d24e8a05fd20a5adb008c5f18944e39fd1')
   })
 })
 
@@ -70,5 +101,17 @@ describe('RajaOngkir QRISLY adapter', () => {
     await assert.rejects(new RajaOngkirQrislyProvider('test-key', '123').createPaymentSession({ id: 'order-1', amount: 25000, currency: 'IDR' }), /unexpected amount/)
     process.env.RAJAONGKIR_API_BASE_URL = 'https://attacker.example/user'
     await assert.rejects(new RajaOngkirQrislyProvider('test-key', '123').createPaymentSession({ id: 'order-1', amount: 25000, currency: 'IDR' }), /approved HTTPS endpoint/)
+  })
+
+  it('normalizes provider payment statuses and rejects mismatched references or unknown states', async () => {
+    process.env.RAJAONGKIR_API_BASE_URL = 'https://api-sandbox.collaborator.komerce.id/user'
+    globalThis.fetch = async () => new Response(JSON.stringify({ meta: { status: 'success' }, data: { history_id: 12345, payment_status: 'paid', amount: 25000, paid_at: '2026-10-11T01:00:00Z' } }), { status: 200 })
+    const provider = new RajaOngkirQrislyProvider('test-key', '123')
+    const result = await provider.getPaymentStatus('12345')
+    assert.deepEqual(result, { historyId: '12345', status: 'paid', amount: 25000, paidAt: new Date('2026-10-11T01:00:00Z') })
+    globalThis.fetch = async () => new Response(JSON.stringify({ meta: { status: 'success' }, data: { history_id: 99999, payment_status: 'paid', amount: 25000 } }), { status: 200 })
+    await assert.rejects(provider.getPaymentStatus('12345'), /invalid payment status response/)
+    globalThis.fetch = async () => new Response(JSON.stringify({ meta: { status: 'success' }, data: { history_id: 12345, payment_status: 'settled', amount: 25000 } }), { status: 200 })
+    await assert.rejects(provider.getPaymentStatus('12345'), /invalid payment status response/)
   })
 })

@@ -55,16 +55,18 @@ npm run lint
 npm run build
 ```
 
-Backend tests use Node's built-in test runner with `tsx`. Frontend tests use Vitest and Testing Library. No Playwright/Cypress browser E2E setup is currently configured. The CI workflows currently run frontend lint/build and backend Prisma validation/build; they should be updated to run both test commands.
+Backend tests use Node's built-in test runner with `tsx`. Frontend tests use Vitest and Testing Library. No Playwright/Cypress browser E2E runner is configured; this run used Chrome headless through the DevTools protocol for critical browser journeys. The CI workflows run both package test commands, lint/type checks, builds, and Prisma generation/validation. They use a self-hosted PostgreSQL URL but do not create a fresh database or run the manual integration scenarios described below.
 
 ### Existing tests
 
-`backend/test/security-and-payments.test.ts` currently checks:
+Backend unit tests currently check:
 
 - Staff origin allowlisting accepts configured staff portal origins and rejects the customer storefront origin.
+- Staff session cookies support the portal/API host split and clear with matching cookie attributes.
+- Prisma transaction conflict classification handles serialization and deadlock SQLSTATEs; recent unpaid status cache can be bypassed by a provider callback.
 - Signed ticket QR values validate when unchanged and fail after tampering.
-- Partner webhook URL validation accepts a public HTTPS endpoint and rejects private/non-HTTPS targets.
-- RajaOngkir payment session parsing accepts supported exact-amount unpaid sessions and rejects wrong amounts or unsupported API origins.
+- Partner webhook URL validation accepts public HTTPS endpoints and rejects private/non-HTTPS targets; webhook signatures bind the timestamp and exact payload bytes.
+- RajaOngkir payment session and status parsing validate exact amounts, references, known statuses, and approved API origins.
 
 `frontend/src/customer-storefront.test.tsx` currently checks:
 
@@ -232,13 +234,13 @@ Before release, run all existing tests plus the P0 regression set: checkout tota
 Recommended CI sequence for pull requests:
 
 1. Install dependencies with lockfile enforcement (`npm ci`).
-2. Backend: Prisma generate and validate, backend unit tests, TypeScript lint/typecheck, build.
-3. Frontend: Vitest tests, TypeScript lint/typecheck, production build.
+2. Backend: Prisma generate and validate, backend unit tests, high-severity dependency audit, TypeScript lint/typecheck, build.
+3. Frontend: Vitest tests, high-severity dependency audit, TypeScript lint/typecheck, production build.
 4. Backend integration tests against a fresh PostgreSQL service and applied migrations.
 5. On relevant changes, run API contract checks and browser E2E critical journeys.
 6. Publish test reports and fail the job on any P0/P1 regression.
 
-The current workflows do not run the package test commands; add `npm test` in each package and provision PostgreSQL before treating CI as a regression gate. Do not make CI depend on a developer's Docker volume or public third-party availability.
+The development and production workflows now run both package test commands and `npm audit --audit-level=high`. They still use the self-hosted runner's PostgreSQL URL rather than creating a fresh database for migrations/integration tests. No secret-scanning tool is configured in this repository; select and add one separately if required by release policy. Do not make CI depend on public third-party availability.
 
 Release smoke checks should verify configured nginx host routing, `/healthz`, `/readyz`, public event read, staff login/session/logout, partner API auth, and a provider sandbox checkout when enabled. Use a non-production test event/account and confirm cleanup afterward.
 
@@ -260,3 +262,4 @@ Record release or manual verification runs here or link the CI run:
 | Date | Commit/branch | Environment | Suites and result | Issues/follow-up |
 | --- | --- | --- | --- | --- |
 | 2026-10-11 | Local development API | Docker PostgreSQL / `localhost:4000` | 18 API E2E assertions passed; backend unit suite (5 tests), typecheck, and build passed | Payment provider is disabled locally, so verified the expected `503`; browser E2E and real provider settlement were not run. Fixtures use the `e2e-20261010175027-a18086` prefix. |
+| 2026-10-11 | Local development workspace | Docker PostgreSQL / local API `localhost:4000`; disposable migrated databases and isolated API/frontend ports for integration and browser runs | Backend unit tests (12), frontend tests (7), both packages' lint and builds passed. Prisma 6.19.3 client generation and schema validation passed; the local DB has all 12 migrations applied. Fresh DB migration and repeatable seed checks passed again after the Prisma update. API E2E covered origin/session, partner/event/performance/ticket/bundle operations, published/draft visibility, invalid inputs, ownership protection, membership and invitation preview/accept/revoke/expiry, tenant boundaries, API key auth/scopes/quota/rotation, webhook SSRF rejection, and catalogue. Isolated HTTP checks passed last-seat concurrency (one `201`, one `409`, one reservation), order idempotency/privacy, disabled provider response, all documented check-in outcomes (accepted, duplicate, tampered, wrong event, unassigned gate, void/refunded/unpaid, and outside window), reservation expiry, refund review/confirmation, and duplicate refund rejection. Provider stubs verified forged callback handling, amount mismatch rejection, correct settlement, duplicate callback idempotency, expiry/cancellation release, and late payment refund review without ticket issuance. HTTPS webhook delivery was stubbed at the transport boundary to verify exact-payload signature/key-version headers, safe failure metadata, retry, and stable delivery ID; email delivery was stubbed to verify sandbox headers, retry, QR content, and single sent event. Chrome headless completed customer search/event/quote/order flow and admin/partner sign-in/dashboard flows; local health/readiness passed both healthy and database-unavailable states. Dev API/admin/partner and production API/customer hosts returned expected content; vm01 services on frontend ports `8093`/`8095`/`8096`/`8097` and API ports `5102`/`5103` returned expected content/health. Backend and frontend `npm audit` reported zero vulnerabilities after updating Prisma packages and overriding `deepmerge-ts` to its patched 8.x line. | Fixed four application defects found during execution: local staff CORS origins, cross-host staff session cookies (`SameSite=None; Secure`, verified in Chrome), PostgreSQL serialization/deadlock conflicts returning `409`, and forced provider callbacks bypassing the recent-unpaid cache. Also resolved the backend high-severity Prisma toolchain audit findings. **Deployment blocker:** production `admin-eticket.fluxorastudio.id` and `partner-eticket.fluxorastudio.id` return `{"message":"PMeme Handal API","docs":"/docs"}` (HTTP 200) instead of Fluxora portals, while the corresponding vm01 services work. The repository Nginx files/Compose mappings specify `8096`/`8097`, so the live public gateway's installed vhosts or routing need correction and a retest. Deploy README specifies that gateway vhost changes require root access to the public gateway. Actual external payment provider, mail, and webhook services were not contacted; all were exercised with local stubs. Disposable DBs were dropped and the existing local demo DB was not mutated. |

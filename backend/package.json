@@ -14,11 +14,14 @@
     "db:seed": "prisma db seed",
     "staff:create": "tsx scripts/create-staff.ts"
   },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2"
+  },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "6.17.1",
+    "@prisma/client": "6.19.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0"
@@ -27,7 +30,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.3.0",
-    "prisma": "6.17.1",
+    "prisma": "6.19.3",
     "tsx": "^4.20.5",
     "typescript": "~5.9.2"
   }

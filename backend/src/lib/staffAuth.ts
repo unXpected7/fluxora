@@ -27,11 +27,11 @@ function readToken(cookieHeader: string | undefined) {
 }
 
 export function setStaffCookie(response: Response, token: string) {
-  response.append('Set-Cookie', `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionSeconds}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`)
+  response.append('Set-Cookie', `${cookieName}=${token}; Path=/; HttpOnly; SameSite=None; Max-Age=${sessionSeconds}; Secure`)
 }
 
 export function clearStaffCookie(response: Response) {
-  response.append('Set-Cookie', `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`)
+  response.append('Set-Cookie', `${cookieName}=; Path=/; HttpOnly; SameSite=None; Max-Age=0; Secure`)
 }
 
 export async function createStaffSession(staffId: string) {

@@ -14,6 +14,10 @@ const staleClaimMs = 30_000
 
 export { supportedEvents }
 
+export function signPartnerWebhook(secret: string, timestamp: string, body: string) {
+  return createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex')
+}
+
 function encryptionKey() {
   const encoded = process.env.PARTNER_WEBHOOK_ENCRYPTION_KEY || ''
   const key = Buffer.from(encoded, 'base64')
@@ -116,7 +120,7 @@ export async function processPartnerWebhookDeliveries(batchSize = 20) {
       const event = { id: candidate.id, type: candidate.eventType, createdAt: candidate.createdAt.toISOString(), data: candidate.payload }
       const body = JSON.stringify(event)
       const secret = decryptWebhookSecret(candidate.webhook.encryptedSecret)
-      const signature = createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex')
+      const signature = signPartnerWebhook(secret, timestamp, body)
       statusCode = await deliver(target, address, family, body, {
         'content-type': 'application/json',
         'user-agent': 'Fluxora-Webhooks/1.0',
