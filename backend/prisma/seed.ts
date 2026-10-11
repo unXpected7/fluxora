@@ -33,8 +33,8 @@ async function main() {
           status: 'ON_SALE',
           ticketTypes: {
             create: [
-              { code: 'REG', name: 'Regular', description: 'General admission', price: 250000, capacity: 500, salesStartAt: new Date('2029-01-01T00:00:00.000Z'), perOrderLimit: 6 },
-              { code: 'VIP', name: 'VIP', description: 'Priority entry', price: 500000, capacity: 100, salesStartAt: new Date('2029-01-01T00:00:00.000Z'), perOrderLimit: 4 },
+              { code: 'REG', name: 'Regular', description: 'General admission', price: 250000, capacity: 500, salesStartAt: null, perOrderLimit: 6 },
+              { code: 'VIP', name: 'VIP', description: 'Priority entry', price: 500000, capacity: 100, salesStartAt: null, perOrderLimit: 4 },
             ],
           },
         },
@@ -47,6 +47,13 @@ async function main() {
   const regular = performance?.ticketTypes.find(ticketType => ticketType.code === 'REG')
   const vip = performance?.ticketTypes.find(ticketType => ticketType.code === 'VIP')
   if (!performance || !regular || !vip) throw new Error('Demo event seed did not create its ticket types')
+
+  // Seed runs are also used to refresh existing local demo records. Keep the
+  // sample tickets available now instead of waiting for a hard-coded future date.
+  await prisma.ticketType.updateMany({
+    where: { performanceId: performance.id, code: { in: ['REG', 'VIP'] } },
+    data: { salesStartAt: null },
+  })
 
   await prisma.bundle.upsert({
     where: { eventId_code: { eventId: event.id, code: 'DUO' } },

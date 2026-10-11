@@ -94,6 +94,13 @@ function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
 }
 
+function quoteAccessToken(request: import('express').Request) {
+  const partnerOrderToken = request.header('x-order-access-token')
+  if (partnerOrderToken !== undefined) return partnerOrderToken.trim()
+  const authorization = request.header('authorization') || ''
+  return authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
+}
+
 function orderNumber() {
   return `FLX-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(5).toString('hex').toUpperCase()}`
 }
@@ -265,8 +272,7 @@ checkoutRouter.post('/orders', limitOrders, async (request, response, next) => {
 
 checkoutRouter.get('/orders/:id', limitOrderStatus, async (request, response, next) => {
   try {
-    const authorization = request.header('authorization') || ''
-    const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
+    const accessToken = quoteAccessToken(request)
     const orderId = typeof request.params.id === 'string' ? request.params.id : ''
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -301,8 +307,7 @@ checkoutRouter.get('/orders/:id', limitOrderStatus, async (request, response, ne
 
 checkoutRouter.post('/orders/:id/payment', limitPaymentSessions, async (request, response, next) => {
   try {
-    const authorization = request.header('authorization') || ''
-    const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
+    const accessToken = quoteAccessToken(request)
     if (!accessToken) throw new CheckoutConflictError('Order not found')
     const orderId = typeof request.params.id === 'string' ? request.params.id : ''
     const order = await prisma.order.findUnique({

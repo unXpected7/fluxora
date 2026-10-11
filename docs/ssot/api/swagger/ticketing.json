@@ -742,7 +742,7 @@
           "Partner API"
         ],
         "summary": "Get partner order status",
-        "description": "Requires checkout:create, orders:read and quote access token.",
+        "description": "Requires checkout:create, orders:read and quote access token in X-Order-Access-Token (partner key remains in Authorization).",
         "responses": {
           "200": {
             "description": "Successful response",
@@ -779,7 +779,7 @@
         "security": [
           {
             "partnerKey": [],
-            "quoteToken": []
+            "partnerQuoteToken": []
           }
         ],
         "parameters": [
@@ -800,7 +800,7 @@
           "Partner API"
         ],
         "summary": "Create partner payment session",
-        "description": "Requires checkout:create and quote access token.",
+        "description": "Requires checkout:create and quote access token in X-Order-Access-Token (partner key remains in Authorization).",
         "responses": {
           "201": {
             "description": "Created"
@@ -833,7 +833,7 @@
         "security": [
           {
             "partnerKey": [],
-            "quoteToken": []
+            "partnerQuoteToken": []
           }
         ],
         "parameters": [
@@ -5665,6 +5665,12 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "Quote access token"
+      },
+      "partnerQuoteToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Order-Access-Token",
+        "description": "Private quote access token for partner API; partner API key stays in Authorization."
       }
     },
     "schemas": {

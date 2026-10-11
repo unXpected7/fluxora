@@ -52,10 +52,12 @@ const requireScope = (scope: string): RequestHandler => (_request, response, nex
   next()
 }
 
-const catalogueSelect = {
+function catalogueSelect(now: Date) {
+  return {
   id: true, slug: true, title: true, summary: true, coverImageUrl: true, venueName: true, venueAddress: true, city: true, timezone: true, startsAt: true, endsAt: true,
-  performances: { where: { status: 'ON_SALE' as const }, orderBy: { startsAt: 'asc' as const }, select: { id: true, name: true, startsAt: true, endsAt: true, ticketTypes: { where: { active: true }, select: { id: true, name: true, description: true, price: true, capacity: true, sold: true, reserved: true } } } },
-  bundles: { where: { active: true }, select: { id: true, code: true, name: true, description: true, price: true, capacity: true, sold: true, reserved: true, items: { select: { quantity: true, ticketType: { select: { id: true, name: true, performanceId: true } } } } } },
+  performances: { where: { status: 'ON_SALE' as const }, orderBy: { startsAt: 'asc' as const }, select: { id: true, name: true, startsAt: true, endsAt: true, ticketTypes: { where: { active: true, AND: [{ OR: [{ salesStartAt: null }, { salesStartAt: { lte: now } }] }, { OR: [{ salesEndAt: null }, { salesEndAt: { gte: now } }] }] }, select: { id: true, name: true, description: true, price: true, capacity: true, sold: true, reserved: true } } } },
+  bundles: { where: { active: true, AND: [{ OR: [{ salesStartAt: null }, { salesStartAt: { lte: now } }] }, { OR: [{ salesEndAt: null }, { salesEndAt: { gte: now } }] }] }, select: { id: true, code: true, name: true, description: true, price: true, capacity: true, sold: true, reserved: true, items: { select: { quantity: true, ticketType: { select: { id: true, name: true, performanceId: true } } } } } },
+  }
 }
 
 partnerApiRouter.get('/events', requireScope('events:read'), async (_request, response, next) => {
@@ -63,7 +65,7 @@ partnerApiRouter.get('/events', requireScope('events:read'), async (_request, re
     const now = new Date()
     const items = await prisma.event.findMany({
       where: { partnerId: response.locals.partnerId, status: 'PUBLISHED', endsAt: { gte: now }, partner: { is: { status: 'ACTIVE' } } },
-      orderBy: [{ startsAt: 'asc' }, { title: 'asc' }], select: catalogueSelect,
+      orderBy: [{ startsAt: 'asc' }, { title: 'asc' }], select: catalogueSelect(now),
     })
     response.json({ items })
   } catch (error) { next(error) }
@@ -75,7 +77,7 @@ partnerApiRouter.get('/events/:slug', requireScope('events:read'), async (reques
     const slug = Array.isArray(request.params.slug) ? request.params.slug[0] : request.params.slug
     const event = await prisma.event.findFirst({
       where: { partnerId: response.locals.partnerId, slug, status: 'PUBLISHED', endsAt: { gte: now }, partner: { is: { status: 'ACTIVE' } } },
-      select: catalogueSelect,
+      select: catalogueSelect(now),
     })
     if (!event) { response.status(404).json({ message: 'Event not found' }); return }
     response.json(event)

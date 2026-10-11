@@ -92,7 +92,7 @@ Response (`201`):
 }
 ```
 
-Keep `accessToken` private. It is required for later order/payment reads and acts as a bearer credential.
+Keep `accessToken` private. Customer API order/payment calls use it as a bearer credential; partner API calls send it in `X-Order-Access-Token` alongside the partner key in `Authorization`.
 
 ### 2. Create an order — `POST /api/v1/checkout/orders`
 
@@ -120,14 +120,15 @@ Response (`201`, or `200` for replay):
 Request:
 
 ```http
-Authorization: Bearer private-quote-token
+Authorization: Bearer flx_live_<secret>
+X-Order-Access-Token: private-quote-token
 ```
 
 Response includes `orderId`, provider, provider payment ID, QR display data, expiry, and a `replayed` flag. A retry may return the already-created payment session. Payment is confirmed only by server-side provider status verification; a client response cannot mark an order paid.
 
 ### 4. Retrieve order status — `GET /api/v1/checkout/orders/:id`
 
-Requires both `checkout:create` and `orders:read` scopes, plus the private quote access token in `Authorization: Bearer ...`. Returns order/payment status, item snapshots, QR payment instructions, issued ticket QR tokens, and email delivery state. Treat this response as sensitive customer data and do not expose it in public pages, analytics, or logs.
+Requires both `checkout:create` and `orders:read` scopes, plus the private quote access token in `X-Order-Access-Token`. The partner key stays in `Authorization: Bearer ...`. Returns order/payment status, item snapshots, QR payment instructions, issued ticket QR tokens, and email delivery state. Treat this response as sensitive customer data and do not expose it in public pages, analytics, or logs.
 
 ## Errors and safe retry behavior
 
